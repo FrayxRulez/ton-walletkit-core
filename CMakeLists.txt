@@ -38,9 +38,9 @@ add_subdirectory(third_party/quickjs EXCLUDE_FROM_ALL)
 add_subdirectory(src)
 
 # ---- test driver ------------------------------------------ (M0: twk-cli)
-# if(TWK_BUILD_CLI)
-#     add_subdirectory(tools/twk-cli)
-# endif()
+if(TWK_BUILD_CLI)
+    add_subdirectory(tools/twk-cli)
+endif()
 
 # ---- tests ------------------------------------------------ (M0: exit tests)
 if(TWK_BUILD_TESTS)
@@ -71,6 +71,17 @@ if(TWK_BUILD_TESTS)
     add_executable(twk_bridge_smoke test/bridge_smoke.cpp)
     target_link_libraries(twk_bridge_smoke PRIVATE twk)
     add_test(NAME bridge_smoke COMMAND twk_bridge_smoke)
+
+    # Teardown across varied in-flight states.
+    add_executable(twk_teardown_stress test/teardown_stress.cpp)
+    target_link_libraries(twk_teardown_stress PRIVATE twk)
+    add_test(NAME teardown_stress COMMAND twk_teardown_stress)
+
+    # M0 exit criterion: twk-cli drives an echo end to end through QuickJS.
+    if(TARGET twk-cli)
+        add_test(NAME cli_echo COMMAND twk-cli ${CMAKE_SOURCE_DIR}/test/m0_echo.twk)
+        set_tests_properties(cli_echo PROPERTIES PASS_REGULAR_EXPRESSION "<< id=2 .*\"n\":1000")
+    endif()
 endif()
 
 message(STATUS "ton-walletkit-core ${PROJECT_VERSION} configured (cli=${TWK_BUILD_CLI} tests=${TWK_BUILD_TESTS})")

@@ -1,0 +1,5 @@
+# M0 exit criterion: drive twk-cli end to end and confirm the echo came back
+# through QuickJS (params 1e3 normalized to 1000).
+1 ping {"x":1}
+2 echo {"n":1e3,"s":"hi"}
+3 noParams
