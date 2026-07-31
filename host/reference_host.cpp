@@ -3,8 +3,11 @@
 //
 #include "reference_host.h"
 
+#include "sse_parser.h"
+
 #include <atomic>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <string>
@@ -257,6 +260,120 @@ HttpOutcome do_request(const std::string& method, const std::string& url, const 
     return outcome;
 }
 
+// --- SSE (text/event-stream) ----------------------------------------------
+
+struct SseStream {
+    std::atomic<bool> cancelled{false};
+};
+
+// Runs a stream to completion on its own thread.
+void run_sse(twk_client* client, twk_token token, const std::string& url, const std::string& headers_json,
+             const std::shared_ptr<SseStream>& stream) {
+    auto fail = [&](const char* message) { twk_sse_closed(client, token, message); };
+
+    std::wstring wurl = widen(url);
+    URL_COMPONENTS parts{};
+    parts.dwStructSize = sizeof(parts);
+    wchar_t host[256] = {0};
+    wchar_t path[4096] = {0};
+    wchar_t extra[4096] = {0};
+    parts.lpszHostName = host;
+    parts.dwHostNameLength = ARRAYSIZE(host);
+    parts.lpszUrlPath = path;
+    parts.dwUrlPathLength = ARRAYSIZE(path);
+    parts.lpszExtraInfo = extra;
+    parts.dwExtraInfoLength = ARRAYSIZE(extra);
+    if (!WinHttpCrackUrl(wurl.c_str(), 0, 0, &parts)) {
+        fail("invalid url");
+        return;
+    }
+
+    HINTERNET session = WinHttpOpen(L"ton-walletkit-core-refhost/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                                    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (session == nullptr) {
+        fail("WinHttpOpen failed");
+        return;
+    }
+    // A finite receive timeout is what makes cancellation safe: the read wakes up
+    // periodically so the cancel flag can be checked, instead of closing the
+    // handle from another thread while a read is in flight.
+    WinHttpSetTimeouts(session, 15000, 15000, 30000, 1000);
+
+    HINTERNET connection = WinHttpConnect(session, host, parts.nPort, 0);
+    if (connection == nullptr) {
+        WinHttpCloseHandle(session);
+        fail("WinHttpConnect failed");
+        return;
+    }
+
+    std::wstring target = std::wstring(path) + extra;
+    DWORD flags = (parts.nScheme == INTERNET_SCHEME_HTTPS) ? WINHTTP_FLAG_SECURE : 0;
+    HINTERNET request = WinHttpOpenRequest(connection, L"GET", target.c_str(), nullptr, WINHTTP_NO_REFERER,
+                                           WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+    if (request == nullptr) {
+        WinHttpCloseHandle(connection);
+        WinHttpCloseHandle(session);
+        fail("WinHttpOpenRequest failed");
+        return;
+    }
+
+    std::wstring header_block = L"Accept: text/event-stream\r\nCache-Control: no-cache\r\n";
+    for (const auto& [key, value] : from_json(headers_json)) {
+        header_block += widen(key) + L": " + widen(value) + L"\r\n";
+    }
+
+    if (!WinHttpSendRequest(request, header_block.c_str(), static_cast<DWORD>(-1), WINHTTP_NO_REQUEST_DATA, 0, 0,
+                            0) ||
+        !WinHttpReceiveResponse(request, nullptr)) {
+        WinHttpCloseHandle(request);
+        WinHttpCloseHandle(connection);
+        WinHttpCloseHandle(session);
+        fail("SSE connect failed");
+        return;
+    }
+
+    SseParser parser([&](const std::string& data, const std::string& event, const std::string& id) {
+        std::map<std::string, std::string> frame{{"data", data}, {"event", event}, {"id", id}};
+        twk_sse_event(client, token, to_json(frame).c_str());
+    });
+
+    std::string error;
+    while (!stream->cancelled.load()) {
+        DWORD available = 0;
+        if (!WinHttpQueryDataAvailable(request, &available)) {
+            if (GetLastError() == ERROR_WINHTTP_TIMEOUT) {
+                continue; // idle stream: loop so the cancel flag is re-checked
+            }
+            error = "stream read failed";
+            break;
+        }
+        if (available == 0) {
+            error.clear(); // server closed the stream cleanly
+            break;
+        }
+
+        std::string chunk(available, '\0');
+        DWORD read = 0;
+        if (!WinHttpReadData(request, &chunk[0], available, &read)) {
+            if (GetLastError() == ERROR_WINHTTP_TIMEOUT) {
+                continue;
+            }
+            error = "stream read failed";
+            break;
+        }
+        parser.feed(chunk.data(), read);
+    }
+
+    WinHttpCloseHandle(request);
+    WinHttpCloseHandle(connection);
+    WinHttpCloseHandle(session);
+
+    // A cancelled stream was closed by the app; the core already dropped it.
+    if (!stream->cancelled.load()) {
+        twk_sse_closed(client, token, error.empty() ? nullptr : error.c_str());
+    }
+}
+
 #endif // _WIN32
 
 } // namespace
@@ -305,6 +422,10 @@ struct ReferenceHost::Impl {
     }
 
     ~Impl() {
+#if defined(_WIN32)
+        // Streams block on reads, so tell them to stop before joining.
+        cancelAllStreams();
+#endif
         // Requests may still be running; join so no thread outlives the host.
         std::vector<std::thread> pending;
         {
@@ -338,6 +459,44 @@ struct ReferenceHost::Impl {
         std::lock_guard<std::mutex> guard(mutex);
         threads.push_back(std::move(t));
     }
+
+#if defined(_WIN32)
+    // Live SSE streams, so close() can signal the reader thread.
+    std::mutex sse_mutex;
+    std::map<int64_t, std::shared_ptr<SseStream>> sse_streams;
+
+    std::shared_ptr<SseStream> addStream(int64_t token) {
+        auto stream = std::make_shared<SseStream>();
+        std::lock_guard<std::mutex> guard(sse_mutex);
+        sse_streams[token] = stream;
+        return stream;
+    }
+
+    void cancelStream(int64_t token) {
+        std::shared_ptr<SseStream> stream;
+        {
+            std::lock_guard<std::mutex> guard(sse_mutex);
+            auto it = sse_streams.find(token);
+            if (it == sse_streams.end()) {
+                return;
+            }
+            stream = it->second;
+            sse_streams.erase(it);
+        }
+        stream->cancelled.store(true); // the reader notices on its next timeout
+    }
+
+    void cancelAllStreams() {
+        std::map<int64_t, std::shared_ptr<SseStream>> streams;
+        {
+            std::lock_guard<std::mutex> guard(sse_mutex);
+            streams.swap(sse_streams);
+        }
+        for (auto& [token, stream] : streams) {
+            stream->cancelled.store(true);
+        }
+    }
+#endif
 };
 
 bool ReferenceHost::httpAvailable() {
@@ -388,6 +547,31 @@ void on_http_cancel(void* user, twk_client* /*client*/, twk_token token) {
     static_cast<ReferenceHost::Impl*>(user)->cancel(token);
 }
 
+void on_sse_open(void* user, twk_client* client, twk_token token, const char* url, const char* headers_json) {
+    auto* impl = static_cast<ReferenceHost::Impl*>(user);
+#if defined(_WIN32)
+    auto stream = impl->addStream(token);
+    impl->spawn(std::thread([client, token, u = std::string(url ? url : ""),
+                             h = std::string(headers_json ? headers_json : "{}"), stream] {
+        run_sse(client, token, u, h, stream);
+    }));
+#else
+    (void)impl;
+    (void)url;
+    (void)headers_json;
+    twk_sse_closed(client, token, "reference host: no SSE backend on this platform");
+#endif
+}
+
+void on_sse_close(void* user, twk_client* /*client*/, twk_token token) {
+#if defined(_WIN32)
+    static_cast<ReferenceHost::Impl*>(user)->cancelStream(token);
+#else
+    (void)user;
+    (void)token;
+#endif
+}
+
 // Storage. Completed synchronously — the delegate contract allows it, and it
 // keeps the reference host simple; a real host (PasswordVault) may go async.
 void on_storage_get(void* user, twk_client* client, twk_token token, const char* key) {
@@ -435,6 +619,8 @@ ReferenceHost::ReferenceHost(std::string storage_file) : impl_(std::make_unique<
 
     delegates_.http_request = on_http_request;
     delegates_.http_cancel = on_http_cancel;
+    delegates_.sse_open = on_sse_open;
+    delegates_.sse_close = on_sse_close;
     delegates_.storage_get = on_storage_get;
     delegates_.storage_set = on_storage_set;
     delegates_.storage_remove = on_storage_remove;

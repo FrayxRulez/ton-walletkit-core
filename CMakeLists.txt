@@ -92,6 +92,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_balance_smoke PRIVATE twk)
     add_test(NAME balance_smoke COMMAND twk_balance_smoke)
 
+    # SSE framing parser (multi-line data, comments, CRLF, chunk boundaries).
+    add_executable(twk_sse_parser_test test/sse_parser_test.cpp)
+    target_link_libraries(twk_sse_parser_test PRIVATE twk_refhost)
+    add_test(NAME sse_parser_test COMMAND twk_sse_parser_test)
+
     # SSE seam (multi-shot: EventSource -> sse_open delegate -> events + close).
     add_executable(twk_sse_smoke test/sse_smoke.cpp)
     target_link_libraries(twk_sse_smoke PRIVATE twk)
