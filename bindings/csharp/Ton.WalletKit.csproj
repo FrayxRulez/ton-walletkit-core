@@ -19,4 +19,20 @@
     <None Remove="test\**" />
   </ItemGroup>
 
+
+  <!-- netstandard2.0 lacks these; the generated models need them.
+       System.Text.Json     - the generated converters (generichost emits
+                              hand-written converters, so no reflection at runtime,
+                              which is what .NET Native requires).
+       ComponentModel.Annotations - IValidatableObject / ValidationResult.
+       PolySharp            - nullable/interop attributes the generator emits. -->
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+    <PackageReference Include="PolySharp" Version="1.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
 </Project>

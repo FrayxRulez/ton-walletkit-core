@@ -1,0 +1,4277 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TON WalletKit models",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "AccountState": {
+        "additionalProperties": false,
+        "description": "Blockchain state of an account at a given point in time.\n\nThe `status` field distinguishes four cases:\n- `active` — contract deployed, `code` and `data` present\n- `uninitialized` — has balance/history but no contract deployed; `code`/`data` omitted\n- `frozen` — frozen due to storage debt; `frozenHash` points at the pre-freeze state\n- `non-existing` — no on-chain record at all; balance is `'0'` and other fields omitted",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Canonical (bounceable) representation of the account address."
+          },
+          "balance": {
+            "description": "Balance formatted in TON (10^9 nanotons = 1 TON).",
+            "type": "string"
+          },
+          "code": {
+            "description": "Base64-encoded contract code BOC. Omitted if the contract is not deployed.",
+            "type": "string"
+          },
+          "data": {
+            "description": "Base64-encoded contract data BOC. Omitted if the contract is not deployed.",
+            "type": "string"
+          },
+          "extraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Additional currencies attached to the account, keyed by currency id. Empty object if there are none."
+          },
+          "lastTransaction": {
+            "$ref": "#/components/schemas/TransactionId",
+            "description": "The most recent transaction applied to this account. Omitted if there have been no transactions (e.g. `non-existing` accounts)."
+          },
+          "rawBalance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Balance in nanotons as a decimal string (raw on-chain amount)."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "On-chain account status: `active`, `uninitialized`, `frozen`, or `non-existing`."
+          }
+        },
+        "required": [
+          "address",
+          "status",
+          "rawBalance",
+          "balance",
+          "extraCurrencies"
+        ],
+        "type": "object"
+      },
+      "AccountStatus": {
+        "description": "Copyright (c) TonTech.\n\nThis source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.",
+        "enum": [
+          "uninitialized",
+          "frozen",
+          "active",
+          "non-existing"
+        ],
+        "type": "string"
+      },
+      "AddressBook": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/AddressBookEntry"
+        },
+        "description": "Map of raw addresses to their metadata entries.",
+        "type": "object"
+      },
+      "AddressBookEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The human-readable representation of the blockchain address"
+          },
+          "domain": {
+            "description": "The domain name associated with the address if available",
+            "type": "string"
+          },
+          "interfaces": {
+            "description": "List of supported interfaces by the address",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "interfaces"
+        ],
+        "type": "object"
+      },
+      "AssetType": {
+        "description": "Types of assets supported on the TON blockchain.",
+        "enum": [
+          "ton",
+          "jetton",
+          "nft"
+        ],
+        "type": "string"
+      },
+      "BalanceUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The account address"
+          },
+          "balance": {
+            "description": "The formatted balance",
+            "type": "string"
+          },
+          "rawBalance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The account balance in nano units"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StreamingUpdateStatus",
+            "description": "The finality of the update"
+          },
+          "type": {
+            "enum": [
+              "balance"
+            ],
+            "description": "The update type field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "balance",
+          "rawBalance",
+          "status",
+          "type"
+        ],
+        "type": "object"
+      },
+      "Base64String": {
+        "description": "Base64-encoded string representation",
+        "type": "string"
+      },
+      "BaseProviderUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "providerId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId",
+          "type"
+        ],
+        "type": "object"
+      },
+      "BridgeEvent": {
+        "additionalProperties": false,
+        "description": "Base event type for TON Connect bridge communication.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "CONNECT_EVENT_ERROR_CODES": {
+        "description": "Copyright (c) TonTech.\n\nThis source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.",
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          100,
+          300,
+          400
+        ],
+        "type": "number"
+      },
+      "ConnectionApprovalProof": {
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "$ref": "#/components/schemas/ConnectionApprovalProofDomain"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "signature": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "timestamp": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "signature",
+          "timestamp",
+          "domain",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "ConnectionApprovalProofDomain": {
+        "additionalProperties": false,
+        "properties": {
+          "lengthBytes": {
+            "format": "int",
+            "type": "number"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lengthBytes",
+          "value"
+        ],
+        "type": "object"
+      },
+      "ConnectionRequestEventPreview": {
+        "additionalProperties": false,
+        "description": "Preview data for displaying connection request in the wallet UI.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo",
+            "description": "Information about the requesting dApp"
+          },
+          "manifestFetchErrorCode": {
+            "description": "Error code if manifest fetching failed",
+            "format": "int",
+            "type": "number"
+          },
+          "permissions": {
+            "description": "Permissions requested by the dApp",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionRequestEventPreviewPermission"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "ConnectionRequestEventPreviewPermission": {
+        "additionalProperties": false,
+        "description": "Permission requested by a dApp during connection.",
+        "properties": {
+          "description": {
+            "description": "Detailed description of what the permission allows",
+            "type": "string"
+          },
+          "name": {
+            "description": "Identifier name of the permission",
+            "type": "string"
+          },
+          "title": {
+            "description": "Human-readable title of the permission",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ConnectionRequestEventRequestedItem": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "ton_addr"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "ton_proof"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/ConnectionRequestTonProofRequestedItem"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Data to be signed by the wallet, discriminated by type."
+      },
+      "ConnectionRequestTonProofRequestedItem": {
+        "additionalProperties": false,
+        "description": "TON Proof request item.",
+        "properties": {
+          "payload": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "type": "object"
+      },
+      "DAppInfo": {
+        "additionalProperties": false,
+        "description": "Information about a decentralized application (dApp) connecting via TON Connect.",
+        "properties": {
+          "description": {
+            "description": "Brief description of the dApp's purpose",
+            "type": "string"
+          },
+          "iconUrl": {
+            "description": "Icon/logo URL of the dApp",
+            "format": "url",
+            "type": "string"
+          },
+          "manifestUrl": {
+            "description": "Manifest URL of the dApp",
+            "format": "url",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name of the dApp",
+            "type": "string"
+          },
+          "url": {
+            "description": "Main website URL of the dApp",
+            "format": "url",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DisconnectionEventPreview": {
+        "additionalProperties": false,
+        "description": "Preview data for displaying disconnection event in the wallet UI.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo",
+            "description": "Information about the disconnected dApp"
+          },
+          "reason": {
+            "description": "Human-readable reason for the disconnection",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EmbeddedConnectionResult": {
+        "description": "Opaque type holding the pre-built connection approval response. Created by approveConnectRequest when an embedded request is present. Passed through to the action approval method which attaches the action result and sends it.",
+        "not": {}
+      },
+      "EmbeddedRequest": {
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "method": {
+                  "enum": [
+                    "sendTransaction"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/SendTransactionEmbeddedRequest"
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "method": {
+                  "enum": [
+                    "signMessage"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/SignMessageEmbeddedRequest"
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "method": {
+                  "enum": [
+                    "signData"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/SignDataEmbeddedRequest"
+            }
+          }
+        ],
+        "properties": {
+          "method": {
+            "enum": [
+              "sendTransaction",
+              "signMessage",
+              "signData"
+            ]
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "type": "object"
+      },
+      "EmbeddedSendTransactionRequestEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SendTransactionRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "request": {
+            "$ref": "#/components/schemas/TransactionRequest",
+            "description": "Raw transaction request data"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "sendTransaction"
+            ],
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "preview",
+          "request",
+          "type"
+        ],
+        "type": "object"
+      },
+      "EmbeddedSignDataRequestEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SignDataPayload",
+            "description": "Payload containing the data to be signed"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SignDataRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "signData"
+            ],
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "payload",
+          "preview",
+          "type"
+        ],
+        "type": "object"
+      },
+      "EmbeddedSignMessageRequestEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SendTransactionRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "request": {
+            "$ref": "#/components/schemas/TransactionRequest",
+            "description": "Raw transaction request data"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "signMessage"
+            ],
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "preview",
+          "request",
+          "type"
+        ],
+        "type": "object"
+      },
+      "EmulationAccountState": {
+        "additionalProperties": false,
+        "description": "State of an account at a specific point in an emulated transaction.",
+        "properties": {
+          "accountStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "Account status"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Account balance in nanotons"
+          },
+          "extraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies held by the account, if any"
+          }
+        },
+        "required": [
+          "balance",
+          "accountStatus"
+        ],
+        "type": "object"
+      },
+      "EmulationAction": {
+        "additionalProperties": false,
+        "description": "High-level action extracted from an emulated transaction trace.",
+        "properties": {
+          "accounts": {
+            "description": "Addresses of accounts involved in this action",
+            "items": {
+              "$ref": "#/components/schemas/UserFriendlyAddress"
+            },
+            "type": "array"
+          },
+          "details": {
+            "additionalProperties": {},
+            "description": "Action-specific detail fields keyed by name",
+            "type": "object"
+          },
+          "endLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the action ended"
+          },
+          "endUtime": {
+            "description": "Unix timestamp when the action ended",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "isSuccess": {
+            "description": "Whether the action completed successfully",
+            "type": "boolean"
+          },
+          "startLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the action started"
+          },
+          "startUtime": {
+            "description": "Unix timestamp when the action started",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "traceEndLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the trace ended"
+          },
+          "traceEndUtime": {
+            "description": "Unix timestamp when the trace ended",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "traceId": {
+            "description": "Trace identifier this action belongs to",
+            "type": "string"
+          },
+          "traceMcSeqnoEnd": {
+            "description": "Masterchain block sequence number when the trace ended",
+            "format": "int",
+            "type": "number"
+          },
+          "transactions": {
+            "description": "Hex-encoded hashes of transactions involved in this action",
+            "items": {
+              "$ref": "#/components/schemas/Hex"
+            },
+            "type": "array"
+          },
+          "type": {
+            "description": "Action type identifier (e.g. \"jetton_transfer\", \"ton_transfer\", \"jetton_swap\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startLt",
+          "endLt",
+          "startUtime",
+          "endUtime",
+          "traceEndLt",
+          "traceEndUtime",
+          "traceMcSeqnoEnd",
+          "transactions",
+          "isSuccess",
+          "type",
+          "accounts",
+          "details"
+        ],
+        "type": "object"
+      },
+      "EmulationActionMessageSize": {
+        "additionalProperties": false,
+        "description": "Total size of messages created in the action phase.",
+        "properties": {
+          "bits": {
+            "description": "Number of bits used",
+            "format": "int",
+            "type": "number"
+          },
+          "cells": {
+            "description": "Number of cells used",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "required": [
+          "cells",
+          "bits"
+        ],
+        "type": "object"
+      },
+      "EmulationActionPhase": {
+        "additionalProperties": false,
+        "description": "Action phase of transaction execution (outgoing message sending).",
+        "properties": {
+          "hasNoFunds": {
+            "description": "Whether the transaction failed due to insufficient funds",
+            "type": "boolean"
+          },
+          "isSuccess": {
+            "description": "Whether the action phase succeeded",
+            "type": "boolean"
+          },
+          "isValid": {
+            "description": "Whether the action list was valid",
+            "type": "boolean"
+          },
+          "msgsCreated": {
+            "description": "Number of messages created",
+            "format": "int",
+            "type": "number"
+          },
+          "resultCode": {
+            "description": "Result code of the action phase",
+            "format": "int",
+            "type": "number"
+          },
+          "skippedActions": {
+            "description": "Number of actions skipped",
+            "format": "int",
+            "type": "number"
+          },
+          "specActions": {
+            "description": "Number of special actions executed",
+            "format": "int",
+            "type": "number"
+          },
+          "statusChange": {
+            "description": "Account status change applied during the action phase",
+            "type": "string"
+          },
+          "totalActionFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total action fees charged in nanotons"
+          },
+          "totalActions": {
+            "description": "Total number of actions processed",
+            "format": "int",
+            "type": "number"
+          },
+          "totalFwdFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total forwarding fees charged in nanotons"
+          },
+          "totalMsgSize": {
+            "$ref": "#/components/schemas/EmulationActionMessageSize",
+            "description": "Total size of all messages created"
+          }
+        },
+        "required": [
+          "isSuccess",
+          "isValid",
+          "hasNoFunds",
+          "statusChange",
+          "resultCode",
+          "totalActions",
+          "specActions",
+          "skippedActions",
+          "msgsCreated",
+          "totalMsgSize"
+        ],
+        "type": "object"
+      },
+      "EmulationAddressBookEntry": {
+        "additionalProperties": false,
+        "description": "Address book entry providing human-readable metadata for an on-chain address.",
+        "properties": {
+          "domain": {
+            "description": "DNS domain name associated with the address, if any",
+            "type": "string"
+          },
+          "interfaces": {
+            "description": "List of known interfaces implemented by the contract",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "userFriendly": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "User-friendly representation of the address"
+          }
+        },
+        "required": [
+          "userFriendly",
+          "interfaces"
+        ],
+        "type": "object"
+      },
+      "EmulationBlockRef": {
+        "additionalProperties": false,
+        "description": "Reference to a block in the TON blockchain.",
+        "properties": {
+          "seqno": {
+            "description": "Block sequence number",
+            "format": "int",
+            "type": "number"
+          },
+          "shard": {
+            "description": "Shard identifier",
+            "type": "string"
+          },
+          "workchain": {
+            "description": "Workchain identifier",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "required": [
+          "workchain",
+          "shard",
+          "seqno"
+        ],
+        "type": "object"
+      },
+      "EmulationComputePhase": {
+        "additionalProperties": false,
+        "description": "Compute phase of transaction execution (TVM execution).",
+        "properties": {
+          "exitCode": {
+            "description": "TVM exit code",
+            "format": "int",
+            "type": "number"
+          },
+          "gasCredit": {
+            "description": "Gas credit, if any",
+            "type": "string"
+          },
+          "gasFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Gas fees charged in nanotons"
+          },
+          "gasLimit": {
+            "description": "Gas limit for this execution",
+            "type": "string"
+          },
+          "gasUsed": {
+            "description": "Total gas consumed",
+            "type": "string"
+          },
+          "isAccountActivated": {
+            "description": "Whether the account was activated during compute",
+            "type": "boolean"
+          },
+          "isMsgStateUsed": {
+            "description": "Whether the message state was used during compute",
+            "type": "boolean"
+          },
+          "isSkipped": {
+            "description": "Whether the compute phase was skipped",
+            "type": "boolean"
+          },
+          "isSuccess": {
+            "description": "Whether the TVM execution succeeded",
+            "type": "boolean"
+          },
+          "mode": {
+            "description": "Compute execution mode",
+            "format": "int",
+            "type": "number"
+          },
+          "vmSteps": {
+            "description": "Number of TVM steps executed",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "required": [
+          "isSkipped",
+          "isSuccess",
+          "isMsgStateUsed",
+          "isAccountActivated",
+          "gasFees",
+          "gasUsed",
+          "gasLimit",
+          "mode",
+          "exitCode",
+          "vmSteps"
+        ],
+        "type": "object"
+      },
+      "EmulationCreditPhase": {
+        "additionalProperties": false,
+        "description": "Credit phase of transaction execution.",
+        "properties": {
+          "credit": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount credited to the account in nanotons"
+          }
+        },
+        "required": [
+          "credit"
+        ],
+        "type": "object"
+      },
+      "EmulationError": {
+        "additionalProperties": false,
+        "description": "Error returned when transaction emulation fails.",
+        "properties": {
+          "code": {
+            "description": "Numeric error code",
+            "format": "int",
+            "type": "number"
+          },
+          "message": {
+            "description": "Human-readable error message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "EmulationMessage": {
+        "additionalProperties": false,
+        "description": "Message sent or received within an emulated transaction trace.",
+        "properties": {
+          "createdAt": {
+            "description": "Unix timestamp when the message was created, or undefined for external inbound messages",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "createdLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the message was created, or undefined for external inbound messages"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Destination address of the message"
+          },
+          "fwdFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Forwarding fee in nanotons, or undefined for external inbound messages"
+          },
+          "ihrDisabled": {
+            "description": "Whether IHR delivery is disabled, or undefined for external inbound messages",
+            "type": "boolean"
+          },
+          "ihrFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "IHR (Instant Hypercube Routing) fee in nanotons, or undefined for external inbound messages"
+          },
+          "importFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Import fee paid for delivering an external inbound message, undefined for all other message types"
+          },
+          "initState": {
+            "description": "Initial state (StateInit) attached to the message, if any"
+          },
+          "isBounce": {
+            "description": "Whether the message requested a bounce on failure, or undefined for external inbound messages",
+            "type": "boolean"
+          },
+          "isBounced": {
+            "description": "Whether the message was bounced back, or undefined for external inbound messages",
+            "type": "boolean"
+          },
+          "messageContent": {
+            "$ref": "#/components/schemas/EmulationMessageContent",
+            "description": "Decoded content of the message body"
+          },
+          "source": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Source address of the message, or undefined for external inbound messages"
+          },
+          "value": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount of nanotons transferred, or undefined for external inbound messages"
+          },
+          "valueExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies transferred with the message"
+          }
+        },
+        "required": [
+          "destination",
+          "valueExtraCurrencies",
+          "messageContent"
+        ],
+        "type": "object"
+      },
+      "EmulationMessageContent": {
+        "additionalProperties": false,
+        "description": "Decoded content of an emulation message body.",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Message body in BOC base64 format, if available"
+          },
+          "decoded": {
+            "description": "Structured decoded representation of the message body, if available"
+          }
+        },
+        "type": "object"
+      },
+      "EmulationResponse": {
+        "additionalProperties": false,
+        "description": "Unified emulation response model, normalised from either Toncenter or TonAPI sources.",
+        "properties": {
+          "actions": {
+            "description": "High-level actions extracted from the trace",
+            "items": {
+              "$ref": "#/components/schemas/EmulationAction"
+            },
+            "type": "array"
+          },
+          "addressBook": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EmulationAddressBookEntry"
+            },
+            "description": "Address book mapping raw addresses to human-readable metadata",
+            "type": "object"
+          },
+          "codeCells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Base64String"
+            },
+            "description": "Map of code cell hashes to their BOC base64 representations",
+            "type": "object"
+          },
+          "dataCells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Base64String"
+            },
+            "description": "Map of data cell hashes to their BOC base64 representations",
+            "type": "object"
+          },
+          "isIncomplete": {
+            "description": "Whether the trace is incomplete due to limits or errors",
+            "type": "boolean"
+          },
+          "mcBlockSeqno": {
+            "description": "Masterchain block sequence number used during emulation",
+            "format": "int",
+            "type": "number"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/EmulationTraceNode",
+            "description": "Root node of the transaction execution tree"
+          },
+          "transactions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EmulationTransaction"
+            },
+            "description": "Map of transaction hashes to transaction details",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mcBlockSeqno",
+          "trace",
+          "transactions",
+          "actions",
+          "isIncomplete",
+          "codeCells",
+          "dataCells",
+          "addressBook"
+        ],
+        "type": "object"
+      },
+      "EmulationResultError": {
+        "additionalProperties": false,
+        "description": "Failed outcome of a transaction emulation attempt. Contains the error code and message describing why emulation could not complete.",
+        "properties": {
+          "emulationError": {
+            "$ref": "#/components/schemas/EmulationError",
+            "description": "Details of the error that caused emulation to fail"
+          },
+          "result": {
+            "enum": [
+              "error"
+            ],
+            "description": "Discriminant tag indicating a failed emulation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "emulationError"
+        ],
+        "type": "object"
+      },
+      "EmulationResultSuccess": {
+        "additionalProperties": false,
+        "description": "Successful outcome of a transaction emulation attempt. Contains the full emulation response including trace and actions.",
+        "properties": {
+          "emulationResult": {
+            "$ref": "#/components/schemas/EmulationResponse",
+            "description": "The emulation response data including trace, actions, and messages"
+          },
+          "result": {
+            "enum": [
+              "success"
+            ],
+            "description": "Discriminant tag indicating a successful emulation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "emulationResult"
+        ],
+        "type": "object"
+      },
+      "EmulationStoragePhase": {
+        "additionalProperties": false,
+        "description": "Storage phase of transaction execution.",
+        "properties": {
+          "statusChange": {
+            "description": "Account status change applied during the storage phase",
+            "type": "string"
+          },
+          "storageFeesCollected": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Storage fees collected during this phase in nanotons"
+          }
+        },
+        "required": [
+          "storageFeesCollected",
+          "statusChange"
+        ],
+        "type": "object"
+      },
+      "EmulationTraceNode": {
+        "additionalProperties": false,
+        "description": "Node in the emulation execution tree.",
+        "properties": {
+          "children": {
+            "description": "Child nodes representing spawned messages",
+            "items": {
+              "$ref": "#/components/schemas/EmulationTraceNode"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "type": "object"
+      },
+      "EmulationTransaction": {
+        "additionalProperties": false,
+        "description": "Transaction within an emulated trace.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the account that executed this transaction"
+          },
+          "accountStateAfter": {
+            "$ref": "#/components/schemas/EmulationAccountState",
+            "description": "Account state after the transaction was applied"
+          },
+          "accountStateBefore": {
+            "$ref": "#/components/schemas/EmulationAccountState",
+            "description": "Account state before the transaction was applied"
+          },
+          "blockRef": {
+            "$ref": "#/components/schemas/EmulationBlockRef",
+            "description": "Block reference where this transaction was included"
+          },
+          "description": {
+            "$ref": "#/components/schemas/EmulationTransactionDescription",
+            "description": "Detailed breakdown of transaction execution phases"
+          },
+          "endStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "Account status after this transaction was applied"
+          },
+          "inMsg": {
+            "$ref": "#/components/schemas/EmulationMessage",
+            "description": "Incoming message that triggered this transaction, or undefined for tick-tock transactions"
+          },
+          "isEmulated": {
+            "description": "Whether this transaction was produced by emulation rather than executed on-chain",
+            "type": "boolean"
+          },
+          "lt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time of the transaction"
+          },
+          "mcBlockSeqno": {
+            "description": "Masterchain block sequence number",
+            "format": "int",
+            "type": "number"
+          },
+          "now": {
+            "description": "Unix timestamp of the transaction",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "origStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "Account status before this transaction was applied"
+          },
+          "outMsgs": {
+            "description": "Outgoing messages produced by this transaction",
+            "items": {
+              "$ref": "#/components/schemas/EmulationMessage"
+            },
+            "type": "array"
+          },
+          "prevTransLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time of the previous transaction on this account"
+          },
+          "totalFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total fees paid in nanotons"
+          },
+          "totalFeesExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies paid as fees"
+          },
+          "traceId": {
+            "description": "Trace identifier, if available",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "lt",
+          "now",
+          "mcBlockSeqno",
+          "origStatus",
+          "endStatus",
+          "totalFees",
+          "totalFeesExtraCurrencies",
+          "description",
+          "blockRef",
+          "outMsgs",
+          "accountStateBefore",
+          "accountStateAfter",
+          "isEmulated"
+        ],
+        "type": "object"
+      },
+      "EmulationTransactionDescription": {
+        "additionalProperties": false,
+        "description": "Detailed description of all execution phases in an emulated transaction.",
+        "properties": {
+          "actionPhase": {
+            "$ref": "#/components/schemas/EmulationActionPhase",
+            "description": "Action phase data, present only if actions were executed"
+          },
+          "computePhase": {
+            "$ref": "#/components/schemas/EmulationComputePhase",
+            "description": "Compute phase data (TVM execution)"
+          },
+          "creditPhase": {
+            "$ref": "#/components/schemas/EmulationCreditPhase",
+            "description": "Credit phase data, present only if credit was processed"
+          },
+          "isAborted": {
+            "description": "Whether the transaction was aborted",
+            "type": "boolean"
+          },
+          "isCreditFirst": {
+            "description": "Whether the credit phase was executed before the storage phase",
+            "type": "boolean"
+          },
+          "isDestroyed": {
+            "description": "Whether the account was destroyed by this transaction",
+            "type": "boolean"
+          },
+          "isInstalled": {
+            "description": "Whether a contract was installed in this transaction",
+            "type": "boolean"
+          },
+          "isTock": {
+            "description": "Whether this was a tock transaction",
+            "type": "boolean"
+          },
+          "storagePhase": {
+            "$ref": "#/components/schemas/EmulationStoragePhase",
+            "description": "Storage phase data"
+          },
+          "type": {
+            "description": "Transaction type (e.g. \"ord\", \"ticktock\", \"storage\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "isAborted",
+          "isDestroyed",
+          "isCreditFirst",
+          "isTock",
+          "isInstalled",
+          "storagePhase",
+          "computePhase"
+        ],
+        "type": "object"
+      },
+      "ExtraCurrencies": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "Map of extra currency IDs to their amounts. Extra currencies are additional tokens that can be attached to TON messages.",
+        "type": "object"
+      },
+      "GaslessSupportedAsset": {
+        "additionalProperties": false,
+        "description": "An asset the relayer accepts as fee payment.\n\nAddress shape is currently always a jetton master (TonAPI's only supported mode), but the type is intentionally generic so future relayers can advertise NFT items or other assets without re-shaping the model.",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Asset address — jetton master, NFT item, etc."
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "type": "object"
+      },
+      "Hex": {
+        "not": {}
+      },
+      "Jetton": {
+        "additionalProperties": false,
+        "description": "Jetton fungible token on the TON blockchain (TEP-74 standard).",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The Jetton contract address"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The current jetton balance"
+          },
+          "decimalsNumber": {
+            "description": "The number of decimal places used by the token",
+            "format": "int",
+            "type": "number"
+          },
+          "extra": {
+            "additionalProperties": {},
+            "description": "Additional arbitrary data related to the jetton",
+            "type": "object"
+          },
+          "info": {
+            "$ref": "#/components/schemas/TokenInfo",
+            "description": "Information about the token"
+          },
+          "isVerified": {
+            "description": "Indicates if the jetton is verified",
+            "type": "boolean"
+          },
+          "prices": {
+            "description": "Current prices of the jetton in various currencies",
+            "items": {
+              "$ref": "#/components/schemas/JettonPrice"
+            },
+            "type": "array"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The Jetton wallet address"
+          }
+        },
+        "required": [
+          "address",
+          "walletAddress",
+          "balance",
+          "info",
+          "isVerified",
+          "prices"
+        ],
+        "type": "object"
+      },
+      "JettonPrice": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "description": "Currency code (e.g., \"USD\", \"EUR\")",
+            "type": "string"
+          },
+          "value": {
+            "description": "Price in smallest units of the currency",
+            "format": "bigInt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "JettonTransferItem": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "attachAmount": {
+            "type": "string"
+          },
+          "customPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "forwardAmount": {
+            "type": "string"
+          },
+          "forwardPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "master": {
+            "type": "string"
+          },
+          "queryId": {
+            "type": "string"
+          },
+          "responseDestination": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "jetton"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "master",
+          "destination",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "JettonUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "description": "Human readable formatted balance if decimals are known",
+            "type": "string"
+          },
+          "decimals": {
+            "description": "Decimals mapped from metadata if available",
+            "format": ": int",
+            "type": "number"
+          },
+          "masterAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The master jetton contract address"
+          },
+          "ownerAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The owner of the jetton wallet"
+          },
+          "rawBalance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Balance in raw smallest units (e.g. nano)"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StreamingUpdateStatus",
+            "description": "The finality of the update"
+          },
+          "type": {
+            "enum": [
+              "jettons"
+            ],
+            "description": "The update type field",
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The jetton wallet contract address"
+          }
+        },
+        "required": [
+          "masterAddress",
+          "ownerAddress",
+          "rawBalance",
+          "status",
+          "type",
+          "walletAddress"
+        ],
+        "type": "object"
+      },
+      "LogicalTime": {
+        "description": "Logical time value used for ordering transactions on the TON blockchain",
+        "type": "string"
+      },
+      "NFT": {
+        "additionalProperties": false,
+        "description": "Non-fungible token (NFT) on the TON blockchain.",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Contract address of the NFT item"
+          },
+          "attributes": {
+            "description": "Custom attributes/traits of the NFT (e.g., rarity, properties)",
+            "items": {
+              "$ref": "#/components/schemas/NFTAttribute"
+            },
+            "type": "array"
+          },
+          "auctionContractAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the auction contract, if the NFT is being auctioned"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/NFTCollection",
+            "description": "Information about the collection this item belongs to"
+          },
+          "extra": {
+            "additionalProperties": {},
+            "description": "Off-chain metadata of the NFT (key-value pairs)",
+            "type": "object"
+          },
+          "index": {
+            "description": "Index of the item within its collection",
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/TokenInfo",
+            "description": "Display information about the NFT (name, description, images)"
+          },
+          "isInited": {
+            "description": "Whether the NFT contract has been initialized",
+            "type": "boolean"
+          },
+          "isOnSale": {
+            "description": "Whether the NFT is currently listed for sale",
+            "type": "boolean"
+          },
+          "isSoulbound": {
+            "description": "Whether the NFT is soulbound (non-transferable)",
+            "type": "boolean"
+          },
+          "ownerAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Current owner address of the NFT"
+          },
+          "realOwnerAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Real owner address when NFT is on sale (sale contract becomes temporary owner)"
+          },
+          "saleContractAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the sale contract, if the NFT is listed for sale"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "type": "object"
+      },
+      "NFTAttribute": {
+        "additionalProperties": false,
+        "description": "Attribute/trait of an NFT, commonly used for rarity and properties.",
+        "properties": {
+          "displayType": {
+            "description": "How the attribute should be displayed (e.g., \"string\", \"number\", \"date\")",
+            "type": "string"
+          },
+          "traitType": {
+            "description": "Category or type of the trait (e.g., \"Background\", \"Eyes\")",
+            "type": "string"
+          },
+          "value": {
+            "description": "Value of the attribute (e.g., \"Blue\", \"Rare\")",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NFTCollection": {
+        "additionalProperties": false,
+        "description": "NFT collection on the TON blockchain (TEP-62 standard).",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The blockchain address of the NFT collection contract"
+          },
+          "description": {
+            "description": "A brief description of the NFT collection",
+            "type": "string"
+          },
+          "extra": {
+            "additionalProperties": {},
+            "description": "Additional arbitrary data related to the NFT collection",
+            "type": "object"
+          },
+          "image": {
+            "$ref": "#/components/schemas/TokenImage",
+            "description": "The image representing the NFT collection"
+          },
+          "name": {
+            "description": "The name of the NFT collection",
+            "type": "string"
+          },
+          "nextItemIndex": {
+            "description": "The index value for the next item to be minted in the collection",
+            "type": "string"
+          },
+          "ownerAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The blockchain address of the collection owner"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "type": "object"
+      },
+      "NFTRawTransferRequestMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "customPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "forwardAmount": {
+            "format": "bigInt",
+            "type": "string"
+          },
+          "forwardPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "newOwner": {
+            "$ref": "#/components/schemas/UserFriendlyAddress"
+          },
+          "queryId": {
+            "format": "bigInt",
+            "type": "string"
+          },
+          "responseDestination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress"
+          }
+        },
+        "required": [
+          "queryId",
+          "newOwner",
+          "forwardAmount"
+        ],
+        "type": "object"
+      },
+      "Network": {
+        "additionalProperties": false,
+        "description": "TON blockchain network identifier.",
+        "properties": {
+          "chainId": {
+            "description": "Chain ID of the network (e.g., \"-239\" for mainnet, \"-3\" for testnet)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chainId"
+        ],
+        "type": "object"
+      },
+      "NftTransferItem": {
+        "additionalProperties": false,
+        "properties": {
+          "attachAmount": {
+            "type": "string"
+          },
+          "customPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "forwardAmount": {
+            "type": "string"
+          },
+          "forwardPayload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "newOwner": {
+            "type": "string"
+          },
+          "nftAddress": {
+            "type": "string"
+          },
+          "queryId": {
+            "type": "string"
+          },
+          "responseDestination": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "nft"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "nftAddress",
+          "newOwner"
+        ],
+        "type": "object"
+      },
+      "Pagination": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "Maximum number of items to return",
+            "format": "int",
+            "type": "number"
+          },
+          "offset": {
+            "description": "Number of items to skip before starting to collect the result set",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "ProofMessageDomain": {
+        "additionalProperties": false,
+        "description": "Domain information for proof message verification.",
+        "properties": {
+          "lengthBytes": {
+            "description": "Length of the domain value in bytes",
+            "format": "uint32",
+            "type": "number"
+          },
+          "value": {
+            "description": "Domain name string (e.g., \"example.com\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lengthBytes",
+          "value"
+        ],
+        "type": "object"
+      },
+      "RawStackItem": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "null"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "num"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "cell"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "slice"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "builder"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "tuple"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "items": {
+                  "$ref": "#/components/schemas/RawStackItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "list"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "items": {
+                  "$ref": "#/components/schemas/RawStackItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Copyright (c) TonTech.\n\nThis source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree."
+      },
+      "Result": {
+        "description": "Generic result status for operations.",
+        "enum": [
+          "success",
+          "failure"
+        ],
+        "type": "string"
+      },
+      "ResultError": {
+        "additionalProperties": false,
+        "description": "Error information returned when an operation fails.",
+        "properties": {
+          "code": {
+            "description": "Error code representing the type of error",
+            "format": "int",
+            "type": "number"
+          },
+          "data": {
+            "description": "Additional error data"
+          },
+          "message": {
+            "description": "Human-readable error message",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SendMode": {
+        "additionalProperties": false,
+        "description": "This mode determines how the message is sent, including whether to pay for gas separately and how to handle errors.",
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/SendModeBase"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/SendModeFlag"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "flags"
+        ],
+        "type": "object"
+      },
+      "SendModeBase": {
+        "enum": [
+          0,
+          64,
+          128
+        ],
+        "format": "int",
+        "type": "number"
+      },
+      "SendModeFlag": {
+        "enum": [
+          32,
+          16,
+          2,
+          1
+        ],
+        "format": "int",
+        "type": "number"
+      },
+      "SendTransactionEmbeddedRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "enum": [
+              "sendTransaction"
+            ],
+            "type": "string"
+          },
+          "transactionRequest": {
+            "$ref": "#/components/schemas/TransactionRequest"
+          }
+        },
+        "required": [
+          "method",
+          "transactionRequest"
+        ],
+        "type": "object"
+      },
+      "SendTransactionRequestEvent": {
+        "additionalProperties": false,
+        "description": "Event containing a transaction request from a dApp via TON Connect.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SendTransactionRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "request": {
+            "$ref": "#/components/schemas/TransactionRequest",
+            "description": "Raw transaction request data"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "preview",
+          "request"
+        ],
+        "type": "object"
+      },
+      "SendTransactionRequestEventPreview": {
+        "additionalProperties": false,
+        "description": "Preview data for displaying transaction request in the wallet UI.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TransactionEmulatedPreview",
+            "description": "Emulated transaction preview with actions and traces"
+          }
+        },
+        "type": "object"
+      },
+      "SendTransactionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "boc": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "BOC of the sent transaction"
+          },
+          "normalizedBoc": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Normalized BOC of the external-in message"
+          }
+        },
+        "required": [
+          "boc",
+          "normalizedBoc"
+        ],
+        "type": "object"
+      },
+      "SignData": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "text"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataText"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "binary"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataBinary"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "cell"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataCell"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Data to be signed by the wallet, discriminated by type."
+      },
+      "SignDataBinary": {
+        "additionalProperties": false,
+        "description": "Binary data to be signed.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Raw binary content encoded as bytes in Base64"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "SignDataCell": {
+        "additionalProperties": false,
+        "description": "TON Cell data to be signed with a schema definition.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Cell content encoded in Base64"
+          },
+          "schema": {
+            "description": "Schema describing the cell structure for parsing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "content"
+        ],
+        "type": "object"
+      },
+      "SignDataEmbeddedRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "enum": [
+              "signData"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SignDataPayload"
+          }
+        },
+        "required": [
+          "method",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "SignDataPayload": {
+        "additionalProperties": false,
+        "description": "Payload structure for prepared sign data.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SignData",
+            "description": "Sign data content to be signed"
+          },
+          "fromAddress": {
+            "description": "Optional sender address in received format (raw, user friendly)",
+            "type": "string"
+          },
+          "network": {
+            "$ref": "#/components/schemas/Network",
+            "description": "Network where the signing will occur"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "SignDataPreview": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "text"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataPreviewText"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "binary"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataPreviewBinary"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "cell"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/SignDataPreviewCell"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Data to be signed by the wallet, discriminated by type."
+      },
+      "SignDataPreviewBinary": {
+        "additionalProperties": false,
+        "description": "Binary data to be signed.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Raw binary content encoded as bytes in Base64"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "SignDataPreviewCell": {
+        "additionalProperties": false,
+        "description": "TON Cell data to be signed with a schema definition.",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Cell content encoded in Base64"
+          },
+          "parsed": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "schema": {
+            "description": "Schema describing the cell structure for parsing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "schema"
+        ],
+        "type": "object"
+      },
+      "SignDataPreviewText": {
+        "additionalProperties": false,
+        "description": "Plain text data to be signed.",
+        "properties": {
+          "content": {
+            "description": "Text content to be signed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "SignDataRequestEvent": {
+        "additionalProperties": false,
+        "description": "Event containing a sign data request from a dApp via TON Connect.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SignDataPayload",
+            "description": "Payload containing the data to be signed"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SignDataRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "payload",
+          "preview"
+        ],
+        "type": "object"
+      },
+      "SignDataRequestEventPreview": {
+        "additionalProperties": false,
+        "description": "Preview data for displaying sign data request in the wallet UI.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo",
+            "description": "Information about the requesting dApp"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SignDataPreview",
+            "description": "Array of sign data previews"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "SignDataText": {
+        "additionalProperties": false,
+        "description": "Plain text data to be signed.",
+        "properties": {
+          "content": {
+            "description": "Text content to be signed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "SignMessageEmbeddedRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "enum": [
+              "signMessage"
+            ],
+            "type": "string"
+          },
+          "transactionRequest": {
+            "$ref": "#/components/schemas/TransactionRequest"
+          }
+        },
+        "required": [
+          "method",
+          "transactionRequest"
+        ],
+        "type": "object"
+      },
+      "SignMessageRequestEvent": {
+        "additionalProperties": false,
+        "description": "Event containing a sign-message (sign-only transaction) request from a dApp via TON Connect. The wallet signs the transaction using the internal opcode and returns the signed BoC without broadcasting it on-chain.",
+        "properties": {
+          "dAppInfo": {
+            "$ref": "#/components/schemas/DAppInfo"
+          },
+          "domain": {
+            "description": "Domain of the dApp that initiated the event",
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the bridge event",
+            "type": "string"
+          },
+          "isJsBridge": {
+            "description": "Whether the event originated from JS Bridge (injected provider)",
+            "type": "boolean"
+          },
+          "isLocal": {
+            "type": "boolean"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/SendTransactionRequestEventPreview",
+            "description": "Preview information for UI display"
+          },
+          "request": {
+            "$ref": "#/components/schemas/TransactionRequest",
+            "description": "Raw transaction request data"
+          },
+          "returnStrategy": {
+            "description": "Raw TonConnect return strategy string.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier for the connection",
+            "type": "string"
+          },
+          "tabId": {
+            "description": "Browser tab ID for JS Bridge events",
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Wallet address associated with the event"
+          },
+          "walletId": {
+            "description": "Wallet identifier associated with the event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "preview",
+          "request"
+        ],
+        "type": "object"
+      },
+      "SignatureDomainEmpty": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "empty"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "SignatureDomainL2": {
+        "additionalProperties": false,
+        "properties": {
+          "globalId": {
+            "format": "int",
+            "type": "number"
+          },
+          "type": {
+            "enum": [
+              "l2"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "globalId"
+        ],
+        "type": "object"
+      },
+      "StakingQuoteDirection": {
+        "description": "Direction of the staking quote",
+        "enum": [
+          "stake",
+          "unstake"
+        ],
+        "type": "string"
+      },
+      "StakingTokenInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "description": "'ton' for native TON, otherwise contract address in friendly format",
+            "type": "string"
+          },
+          "decimals": {
+            "format": "int",
+            "type": "number"
+          },
+          "ticker": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "decimals",
+          "address"
+        ],
+        "type": "object"
+      },
+      "StreamingBaseUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/StreamingUpdateStatus",
+            "description": "The finality of the update"
+          },
+          "type": {
+            "$ref": "#/components/schemas/StreamingWatchType",
+            "description": "The update type field"
+          }
+        },
+        "required": [
+          "type",
+          "status"
+        ],
+        "type": "object"
+      },
+      "StreamingUpdateStatus": {
+        "description": "Represents the status of a streaming notification.",
+        "enum": [
+          "pending",
+          "confirmed",
+          "finalized",
+          "invalidated"
+        ],
+        "type": "string"
+      },
+      "StreamingWatchType": {
+        "description": "Defines the types of blockchain events that can be subscribed to via a streaming provider.",
+        "enum": [
+          "balance",
+          "transactions",
+          "jettons"
+        ],
+        "type": "string"
+      },
+      "StructuredItem": {
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "ton"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/TonTransferItem"
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "jetton"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/JettonTransferItem"
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "nft"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "$ref": "#/components/schemas/NftTransferItem"
+            }
+          }
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "ton",
+              "jetton",
+              "nft"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "SwapToken": {
+        "additionalProperties": false,
+        "description": "Token type for swap",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "chainId": {
+            "type": "string"
+          },
+          "decimals": {
+            "format": ": int",
+            "type": "number"
+          },
+          "image": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "decimals"
+        ],
+        "type": "object"
+      },
+      "TokenAmount": {
+        "description": "Token amount represented as a string to preserve precision. For TON, this is typically in nanotons (1 TON = 10^9 nanotons).",
+        "type": "string"
+      },
+      "TokenAnimation": {
+        "additionalProperties": false,
+        "description": "Token animation URL for displaying animated media.",
+        "properties": {
+          "lottie": {
+            "description": "Optional Lottie animation data as a string",
+            "type": "string"
+          },
+          "url": {
+            "description": "URL to the animation file (e.g., GIF, MP4, Lottie)",
+            "format": "url",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TokenImage": {
+        "additionalProperties": false,
+        "description": "Token image URLs in various sizes for display purposes.",
+        "properties": {
+          "data": {
+            "description": "Raw image data encoded in Base64",
+            "format": "byte",
+            "type": "string"
+          },
+          "largeUrl": {
+            "description": "Large image URL (typically 512x512 or higher)",
+            "format": "url",
+            "type": "string"
+          },
+          "mediumUrl": {
+            "description": "Medium-sized image URL (typically 256x256 or similar)",
+            "format": "url",
+            "type": "string"
+          },
+          "smallUrl": {
+            "description": "Small thumbnail URL (typically 64x64 or similar)",
+            "format": "url",
+            "type": "string"
+          },
+          "url": {
+            "description": "Original image URL",
+            "format": "url",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TokenInfo": {
+        "additionalProperties": false,
+        "description": "Display information for a token (TON, Jetton, or NFT).",
+        "properties": {
+          "animation": {
+            "$ref": "#/components/schemas/TokenAnimation",
+            "description": "Animated media associated with the token"
+          },
+          "description": {
+            "description": "Human-readable description of the token",
+            "type": "string"
+          },
+          "image": {
+            "$ref": "#/components/schemas/TokenImage",
+            "description": "Token image in various sizes"
+          },
+          "name": {
+            "description": "Display name of the token",
+            "type": "string"
+          },
+          "symbol": {
+            "description": "Ticker symbol of the token (e.g., \"TON\", \"USDT\")",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TonTransferItem": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "extraCurrency": {
+            "$ref": "#/components/schemas/ExtraCurrencies"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "stateInit": {
+            "$ref": "#/components/schemas/Base64String"
+          },
+          "type": {
+            "enum": [
+              "ton"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "address",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "Transaction": {
+        "additionalProperties": false,
+        "description": "Transaction on the TON blockchain.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Account of the transaction"
+          },
+          "accountStateAfter": {
+            "$ref": "#/components/schemas/TransactionAccountState",
+            "description": "* The state of the account after the transaction has been applied"
+          },
+          "accountStateBefore": {
+            "$ref": "#/components/schemas/TransactionAccountState",
+            "description": "The state of the account before the transaction was executed"
+          },
+          "blockRef": {
+            "$ref": "#/components/schemas/TransactionBlockRef",
+            "description": "The reference to the block in which the transaction was included"
+          },
+          "description": {
+            "$ref": "#/components/schemas/TransactionDescription",
+            "description": "The detailed breakdown of the transaction execution"
+          },
+          "endStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "End status of the transaction"
+          },
+          "inMessage": {
+            "$ref": "#/components/schemas/TransactionMessage",
+            "description": "The incoming message associated with the transaction"
+          },
+          "isEmulated": {
+            "description": "Emulated state of the transaction",
+            "type": "boolean"
+          },
+          "logicalTime": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "The logical time of the transaction"
+          },
+          "mcBlockSeqno": {
+            "description": "Masterchain block sequence number",
+            "format": "int",
+            "type": "number"
+          },
+          "now": {
+            "description": "Unix timestamp of the transaction",
+            "type": "number"
+          },
+          "origStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "Original status of the transaction"
+          },
+          "outMessages": {
+            "description": "The list of outgoing messages produced by the transaction",
+            "items": {
+              "$ref": "#/components/schemas/TransactionMessage"
+            },
+            "type": "array"
+          },
+          "previousTransactionHash": {
+            "description": "The hash of the previous transaction",
+            "type": "string"
+          },
+          "previousTransactionLogicalTime": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "The logical time of the previous transaction"
+          },
+          "totalFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total fees of the transaction"
+          },
+          "totalFeesExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies in the total fees"
+          },
+          "traceId": {
+            "description": "ID of the trace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "logicalTime",
+          "now",
+          "mcBlockSeqno",
+          "outMessages",
+          "isEmulated"
+        ],
+        "type": "object"
+      },
+      "TransactionAccountState": {
+        "additionalProperties": false,
+        "description": "State of an account at a specific point in time.",
+        "properties": {
+          "accountStatus": {
+            "$ref": "#/components/schemas/AccountStatus",
+            "description": "The status of the account"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The account's balance in nanotons"
+          },
+          "codeHash": {
+            "description": "The hash of the smart contract code",
+            "type": "string"
+          },
+          "dataHash": {
+            "description": "The hash of the contract's data section",
+            "type": "string"
+          },
+          "extraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "The additional currencies held by the account, if any"
+          },
+          "frozenHash": {
+            "description": "The hash of the frozen account state, if the account is frozen",
+            "type": "string"
+          },
+          "hash": {
+            "description": "The state hash of the account",
+            "type": "string"
+          }
+        },
+        "required": [
+          "balance"
+        ],
+        "type": "object"
+      },
+      "TransactionAction": {
+        "additionalProperties": false,
+        "description": "Action phase of transaction execution (message sending).",
+        "properties": {
+          "hasNoFunds": {
+            "description": "The flag indicating if the transaction had insufficient funds",
+            "type": "boolean"
+          },
+          "isSuccess": {
+            "description": "The flag indicating whether the action phase succeeded",
+            "type": "boolean"
+          },
+          "isValid": {
+            "description": "The flag indicating whether the action phase was valid",
+            "type": "boolean"
+          },
+          "messagesCreatedNumber": {
+            "description": "The number of messages created in the action phase",
+            "format": "int",
+            "type": "number"
+          },
+          "resultCode": {
+            "description": "The result code returned from the action phase",
+            "format": "int",
+            "type": "number"
+          },
+          "skippedActionsNumber": {
+            "description": "The number of skipped actions during execution",
+            "format": "int",
+            "type": "number"
+          },
+          "specActionsNumber": {
+            "description": "The number of special actions executed",
+            "format": "int",
+            "type": "number"
+          },
+          "statusChange": {
+            "description": "The status change applied to the account during the action phase",
+            "type": "string"
+          },
+          "totalActionFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The total fees charged for actions"
+          },
+          "totalActionsNumber": {
+            "description": "The total number of actions processed",
+            "format": "int",
+            "type": "number"
+          },
+          "totalForwardingFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The total forwarding fees charged"
+          },
+          "totalMessagesSize": {
+            "$ref": "#/components/schemas/TransactionActionMessageSize",
+            "description": "The total size of messages created in the action phase"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionActionMessageSize": {
+        "additionalProperties": false,
+        "description": "Size metrics for messages created in a transaction.",
+        "properties": {
+          "bits": {
+            "description": "The total number of bits used",
+            "format": "int",
+            "type": "number"
+          },
+          "cells": {
+            "description": "The total number of cells used",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionAddressMetadata": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/TransactionAddressMetadataEntry"
+        },
+        "description": "Metadata about addresses, including indexing and associated token info.",
+        "type": "object"
+      },
+      "TransactionAddressMetadataEntry": {
+        "additionalProperties": false,
+        "description": "Metadata entry for a specific address in a transaction.",
+        "properties": {
+          "tokenInfo": {
+            "description": "Token information associated with this address, if any",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTokenInfo"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionBlockRef": {
+        "additionalProperties": false,
+        "description": "Reference to a block in the TON blockchain.",
+        "properties": {
+          "seqno": {
+            "description": "The sequence number of the block",
+            "format": "uint",
+            "type": "number"
+          },
+          "shard": {
+            "description": "The shard identifier of the block",
+            "type": "string"
+          },
+          "workchain": {
+            "description": "The workchain ID of the block",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "required": [
+          "workchain",
+          "shard",
+          "seqno"
+        ],
+        "type": "object"
+      },
+      "TransactionComputePhase": {
+        "additionalProperties": false,
+        "description": "Compute phase of transaction execution (TVM execution).",
+        "properties": {
+          "exitCode": {
+            "description": "The exit code returned from the VM",
+            "format": "int",
+            "type": "number"
+          },
+          "gasCredit": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The gas credit for the compute phase"
+          },
+          "gasFees": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The gas fees charged for compute"
+          },
+          "gasLimit": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The gas limit for the compute phase"
+          },
+          "gasUsed": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The total gas used in the compute phase"
+          },
+          "isAccountActivated": {
+            "description": "The flag indicating if the account was activated during compute",
+            "type": "boolean"
+          },
+          "isMessageStateUsed": {
+            "description": "The flag indicating if message state was used",
+            "type": "boolean"
+          },
+          "isSkipped": {
+            "description": "The flag indicating if the compute phase was skipped",
+            "type": "boolean"
+          },
+          "isSuccess": {
+            "description": "The success state of the compute phase",
+            "type": "boolean"
+          },
+          "mode": {
+            "description": "The compute execution mode",
+            "format": "int",
+            "type": "number"
+          },
+          "vmStepsNumber": {
+            "description": "The number of steps executed by the VM",
+            "format": "int",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionCreditPhase": {
+        "additionalProperties": false,
+        "description": "Credit phase of transaction execution.",
+        "properties": {
+          "credit": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The credited amount"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionDescription": {
+        "additionalProperties": false,
+        "description": "Detailed description of transaction execution phases.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TransactionAction",
+            "description": "The action phase data of the transaction"
+          },
+          "computePhase": {
+            "$ref": "#/components/schemas/TransactionComputePhase",
+            "description": "The compute phase data of the transaction"
+          },
+          "creditPhase": {
+            "$ref": "#/components/schemas/TransactionCreditPhase",
+            "description": "The credit phase of the transaction"
+          },
+          "isAborted": {
+            "description": "The flag indicating if the transaction was aborted",
+            "type": "boolean"
+          },
+          "isCreditFirst": {
+            "description": "The flag indicating if the credit phase was executed first",
+            "type": "boolean"
+          },
+          "isDestroyed": {
+            "description": "The flag indicating if the account was destroyed",
+            "type": "boolean"
+          },
+          "isInstalled": {
+            "description": "The flag indicating if the contract was installed",
+            "type": "boolean"
+          },
+          "isTock": {
+            "description": "The flag indicating if this was a tock transaction",
+            "type": "boolean"
+          },
+          "storagePhase": {
+            "$ref": "#/components/schemas/TransactionStoragePhase",
+            "description": "The storage phase data of the transaction"
+          },
+          "type": {
+            "description": "The transaction type (e.g., tick-tock, ord, split-prepare)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "isAborted",
+          "isDestroyed",
+          "isCreditFirst",
+          "isTock",
+          "isInstalled"
+        ],
+        "type": "object"
+      },
+      "TransactionEmulatedPreview": {
+        "additionalProperties": false,
+        "description": "Preview of an emulated transaction showing expected outcome.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ResultError",
+            "description": "Error details if the emulation failed"
+          },
+          "moneyFlow": {
+            "$ref": "#/components/schemas/TransactionTraceMoneyFlow",
+            "description": "Summary of token flows (incoming/outgoing) for the transaction"
+          },
+          "result": {
+            "$ref": "#/components/schemas/Result",
+            "description": "Result status of the emulation (success or failure)"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TransactionEmulatedTrace",
+            "description": "Full execution trace if emulation succeeded"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object"
+      },
+      "TransactionEmulatedTrace": {
+        "additionalProperties": false,
+        "description": "Extended transaction trace with emulation-specific data including code/data cells and address metadata.",
+        "properties": {
+          "actions": {
+            "description": "List of high-level actions extracted from the trace",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTraceAction"
+            },
+            "type": "array"
+          },
+          "addressBook": {
+            "$ref": "#/components/schemas/AddressBook",
+            "description": "Address book mapping addresses to their human-readable names"
+          },
+          "codeCells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Base64String"
+            },
+            "description": "Map of code cell hashes to their Base64-encoded content",
+            "type": "object"
+          },
+          "dataCells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Base64String"
+            },
+            "description": "Map of data cell hashes to their Base64-encoded content",
+            "type": "object"
+          },
+          "isIncomplete": {
+            "description": "Whether the trace is incomplete due to limits or errors",
+            "type": "boolean"
+          },
+          "mcBlockSeqno": {
+            "description": "Masterchain block sequence number where emulation was performed",
+            "format": "int",
+            "type": "number"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/TransactionAddressMetadata",
+            "description": "Address metadata for accounts involved in the transaction"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TransactionTraceNode",
+            "description": "Root trace node of the execution tree"
+          },
+          "transactions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            "description": "Map of transaction hashes to transaction details",
+            "type": "object"
+          }
+        },
+        "required": [
+          "actions",
+          "addressBook",
+          "codeCells",
+          "dataCells",
+          "isIncomplete",
+          "mcBlockSeqno",
+          "metadata",
+          "trace",
+          "transactions"
+        ],
+        "type": "object"
+      },
+      "TransactionId": {
+        "additionalProperties": false,
+        "description": "Canonical (lt, hash) pair identifying a transaction on the TON blockchain.",
+        "properties": {
+          "lt": {
+            "description": "Logical time of the transaction as a decimal string. Uniquely orders transactions within an account.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lt"
+        ],
+        "type": "object"
+      },
+      "TransactionMessage": {
+        "additionalProperties": false,
+        "description": "Message sent or received in a transaction.",
+        "properties": {
+          "createdAt": {
+            "description": "The timestamp when the message was created",
+            "type": "number"
+          },
+          "creationLogicalTime": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "The logical time when the message was created"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The destination address of the message"
+          },
+          "fwdFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The forwarding fee for the message"
+          },
+          "ihrDisabled": {
+            "description": "IHR(Immediate hypercube routing) enabled/disabled IHR is a method of message delivery in the TON Blockchain network, where messages are sent directly to the recipient’s shardchain.",
+            "type": "boolean"
+          },
+          "ihrFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The fee for IHR delivery"
+          },
+          "importFee": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Import fee for the message (NanoTONs amount)"
+          },
+          "isBounce": {
+            "description": "The flag indicating if the message requested a bounce on failure",
+            "type": "boolean"
+          },
+          "isBounced": {
+            "description": "The flag indicating if the message was bounced back",
+            "type": "boolean"
+          },
+          "messageContent": {
+            "$ref": "#/components/schemas/TransactionMessageContent",
+            "description": "The content body of the message"
+          },
+          "opcode": {
+            "description": "The opcode included in the message payload",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The source address of the message"
+          },
+          "value": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The amount of nanos transferred with the message"
+          },
+          "valueExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "The additional currencies included in the message"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionMessageContent": {
+        "additionalProperties": false,
+        "description": "Content of a transaction message (body or init state).",
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "The body in BOC format"
+          },
+          "decoded": {
+            "description": "The decoded metadata from the initial state body"
+          },
+          "hash": {
+            "description": "The hash of the initial state",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TransactionPreviewMode": {
+        "enum": [
+          "send",
+          "sign"
+        ],
+        "type": "string"
+      },
+      "TransactionRequest": {
+        "additionalProperties": false,
+        "description": "Request to send a transaction on the TON blockchain. Contains `messages` or `items`. If items are present, but messages are not — wallet app is responsible for resolving items into messages.",
+        "properties": {
+          "fromAddress": {
+            "description": "Sender wallet address in received format(raw, user friendly)",
+            "type": "string"
+          },
+          "items": {
+            "description": "List of structured items (ton/jetton/nft) as an alternative to raw messages. When present, the wallet app is responsible for resolving items into messages.",
+            "items": {
+              "$ref": "#/components/schemas/StructuredItem"
+            },
+            "type": "array"
+          },
+          "messages": {
+            "description": "List of messages to include in the transaction",
+            "items": {
+              "$ref": "#/components/schemas/TransactionRequestMessage"
+            },
+            "type": "array"
+          },
+          "network": {
+            "$ref": "#/components/schemas/Network",
+            "description": "Network to execute the transaction on"
+          },
+          "validUntil": {
+            "description": "Unix timestamp after which the transaction becomes invalid",
+            "type": "number"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "type": "object"
+      },
+      "TransactionRequestMessage": {
+        "additionalProperties": false,
+        "description": "Individual message within a transaction request.",
+        "properties": {
+          "address": {
+            "description": "Recipient wallet address in format received from caller (raw, user friendly)",
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount to transfer in nanos"
+          },
+          "extraCurrency": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Additional currencies to include in the transfer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/SendMode",
+            "description": "Send mode flags controlling message behavior"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Message payload data encoded in Base64"
+          },
+          "stateInit": {
+            "$ref": "#/components/schemas/Base64String",
+            "description": "Initial state for deploying a new contract, encoded in Base64"
+          }
+        },
+        "required": [
+          "address",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "TransactionStatus": {
+        "description": "Copyright (c) TonTech.\n\nThis source code is licensed under the MIT license found in the LICENSE file in the root directory of this source tree.",
+        "enum": [
+          "unknown",
+          "pending",
+          "completed",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "TransactionStoragePhase": {
+        "additionalProperties": false,
+        "description": "Storage phase of transaction execution.",
+        "properties": {
+          "statusChange": {
+            "description": "The status change applied to the account during the storage phase",
+            "type": "string"
+          },
+          "storageFeesCollected": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "The storage fees collected during this phase"
+          }
+        },
+        "required": [
+          "storageFeesCollected"
+        ],
+        "type": "object"
+      },
+      "TransactionTokenInfo": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "jetton_wallets"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTokenInfoJettonWallets"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "jetton_masters"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTokenInfoJettonMasters"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTokenInfoBase"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Token information discriminated by token type."
+      },
+      "TransactionTokenInfoBase": {
+        "additionalProperties": false,
+        "description": "Base token information shared by all token types.",
+        "properties": {
+          "extra": {
+            "additionalProperties": {},
+            "description": "Additional metadata for the token, such as image sizes, decimal precision, external links, and marketplaces",
+            "type": "object"
+          },
+          "isValid": {
+            "description": "Indicates if the token contract is valid",
+            "type": "boolean"
+          },
+          "type": {
+            "description": "Type of token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "isValid",
+          "type",
+          "extra"
+        ],
+        "type": "object"
+      },
+      "TransactionTokenInfoJettonMasters": {
+        "additionalProperties": false,
+        "description": "Token information for Jetton master contracts.",
+        "properties": {
+          "decimalsCount": {
+            "description": "Number of decimal places for the Jetton amount",
+            "format": "int",
+            "type": "number"
+          },
+          "description": {
+            "description": "Human-readable description of the Jetton",
+            "type": "string"
+          },
+          "extra": {
+            "additionalProperties": {},
+            "description": "Additional metadata for the token, such as image sizes, decimal precision, external links, and marketplaces",
+            "type": "object"
+          },
+          "image": {
+            "$ref": "#/components/schemas/TokenImage",
+            "description": "Token image in various sizes"
+          },
+          "isValid": {
+            "description": "Indicates if the token contract is valid",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Display name of the Jetton",
+            "type": "string"
+          },
+          "social": {
+            "description": "Social media links for the Jetton project",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "symbol": {
+            "description": "Ticker symbol of the Jetton",
+            "type": "string"
+          },
+          "type": {
+            "description": "Type of token",
+            "type": "string"
+          },
+          "uri": {
+            "description": "Metadata URI for the Jetton",
+            "type": "string"
+          },
+          "websites": {
+            "description": "Official website URLs for the Jetton project",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "decimalsCount",
+          "description",
+          "extra",
+          "isValid",
+          "name",
+          "social",
+          "symbol",
+          "type",
+          "uri",
+          "websites"
+        ],
+        "type": "object"
+      },
+      "TransactionTokenInfoJettonWallets": {
+        "additionalProperties": false,
+        "description": "Token information for Jetton wallet contracts.",
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Current balance of the Jetton wallet"
+          },
+          "extra": {
+            "additionalProperties": {},
+            "description": "Additional metadata for the token, such as image sizes, decimal precision, external links, and marketplaces",
+            "type": "object"
+          },
+          "isValid": {
+            "description": "Indicates if the token contract is valid",
+            "type": "boolean"
+          },
+          "jetton": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the Jetton master contract"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Owner address of this Jetton wallet"
+          },
+          "type": {
+            "description": "Type of token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "balance",
+          "extra",
+          "isValid",
+          "jetton",
+          "owner",
+          "type"
+        ],
+        "type": "object"
+      },
+      "TransactionTrace": {
+        "additionalProperties": false,
+        "description": "Trace of a transaction execution showing the full message chain.",
+        "properties": {
+          "actions": {
+            "description": "List of high-level actions extracted from the trace",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTraceAction"
+            },
+            "type": "array"
+          },
+          "isIncomplete": {
+            "description": "Whether the trace is incomplete due to limits or errors",
+            "type": "boolean"
+          },
+          "mcBlockSeqno": {
+            "description": "Masterchain block sequence number where emulation was performed",
+            "format": "int",
+            "type": "number"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TransactionTraceNode",
+            "description": "Root trace node of the execution tree"
+          },
+          "transactions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            "description": "Map of transaction hashes to transaction details",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mcBlockSeqno",
+          "trace",
+          "transactions",
+          "actions",
+          "isIncomplete"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceAction": {
+        "additionalProperties": false,
+        "description": "High-level action extracted from a transaction trace.",
+        "properties": {
+          "accounts": {
+            "description": "List of accounts involved in this action",
+            "items": {
+              "$ref": "#/components/schemas/UserFriendlyAddress"
+            },
+            "type": "array"
+          },
+          "actionId": {
+            "description": "Action identifier",
+            "type": "string"
+          },
+          "details": {
+            "$ref": "#/components/schemas/TransactionTraceActionDetails",
+            "description": "Detailed information about the action"
+          },
+          "endLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the action ended"
+          },
+          "endUtime": {
+            "description": "Unix time when the action ended",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "isSuccess": {
+            "description": "Indicates if the action was successful",
+            "type": "boolean"
+          },
+          "startLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the action started"
+          },
+          "startUtime": {
+            "description": "Unix time when the action started",
+            "type": "number"
+          },
+          "traceEndLt": {
+            "$ref": "#/components/schemas/LogicalTime",
+            "description": "Logical time when the trace ended"
+          },
+          "traceEndUtime": {
+            "description": "Unix time when the trace ended",
+            "format": "timestamp",
+            "type": "number"
+          },
+          "traceId": {
+            "description": "Trace identifier",
+            "type": "string"
+          },
+          "traceMcSeqnoEnd": {
+            "description": "Masterchain block sequence number when the trace ended",
+            "type": "number"
+          },
+          "transactions": {
+            "description": "List of transaction hashes involved in this action",
+            "items": {
+              "$ref": "#/components/schemas/Hex"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "transactions",
+          "accounts",
+          "details"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceActionCallContractDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the receiver account."
+          },
+          "opcode": {
+            "description": "Opcode or method identifier of the contract call.",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the sender account."
+          },
+          "value": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Value transferred during the contract call."
+          },
+          "valueExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies sent with the call."
+          }
+        },
+        "required": [
+          "opcode"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceActionDetails": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "jetton_swap"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTraceActionJettonSwapDetails"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "call_contract"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTraceActionCallContractDetails"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "ton_transfer"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/TransactionTraceActionTONTransferDetails"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "additionalProperties": {},
+                "type": "object"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Details of a transaction trace action"
+      },
+      "TransactionTraceActionJettonSwapDetails": {
+        "additionalProperties": false,
+        "description": "Details of a Jetton swap action on a DEX.",
+        "properties": {
+          "dex": {
+            "description": "Name of the decentralized exchange",
+            "type": "string"
+          },
+          "dexIncomingTransfer": {
+            "$ref": "#/components/schemas/TransactionTraceActionJettonTransfer",
+            "description": "Transfer details for tokens sent to the DEX"
+          },
+          "dexOutgoingTransfer": {
+            "$ref": "#/components/schemas/TransactionTraceActionJettonTransfer",
+            "description": "Transfer details for tokens received from the DEX"
+          },
+          "peerSwaps": {
+            "description": "Related peer swap operations (for multi-hop swaps)",
+            "items": {},
+            "type": "array"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the account initiating the swap"
+          }
+        },
+        "required": [
+          "dex",
+          "peerSwaps"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceActionJettonTransfer": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount of jettons transferred."
+          },
+          "asset": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Jetton asset address being transferred."
+          },
+          "destination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the receiver account."
+          },
+          "destinationJettonWallet": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Jetton wallet address of the receiver."
+          },
+          "source": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the sender account."
+          },
+          "sourceJettonWallet": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Jetton wallet address of the sender."
+          }
+        },
+        "type": "object"
+      },
+      "TransactionTraceActionTONTransferDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "comment": {
+            "description": "Optional comment for the transfer",
+            "type": "string"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the receiver account."
+          },
+          "isEncrypted": {
+            "description": "Indicates if the payload or comment was encrypted.",
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the sender account."
+          },
+          "value": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount of TON transferred (in nanotons)."
+          },
+          "valueExtraCurrencies": {
+            "$ref": "#/components/schemas/ExtraCurrencies",
+            "description": "Extra currencies sent with the transfer."
+          }
+        },
+        "type": "object"
+      },
+      "TransactionTraceMoneyFlow": {
+        "additionalProperties": false,
+        "description": "Summary of token flows for a transaction.",
+        "properties": {
+          "allJettonTransfers": {
+            "description": "List of all token transfers involved in the transaction",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTraceMoneyFlowItem"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total token amounts input to the transaction"
+          },
+          "ourAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Our address involved in the transaction (if any)"
+          },
+          "ourTransfers": {
+            "description": "List of token transfers involving our address",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTraceMoneyFlowItem"
+            },
+            "type": "array"
+          },
+          "outputs": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Total token amounts output by the transaction"
+          }
+        },
+        "required": [
+          "outputs",
+          "inputs",
+          "allJettonTransfers",
+          "ourTransfers"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceMoneyFlowItem": {
+        "additionalProperties": false,
+        "description": "Individual token flow item.",
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/TokenAmount",
+            "description": "Amount being transferred (for TON/Jetton)"
+          },
+          "assetType": {
+            "$ref": "#/components/schemas/AssetType",
+            "description": "Type of asset being transferred"
+          },
+          "fromAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Sender address"
+          },
+          "toAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Recipient address"
+          },
+          "tokenAddress": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "Address of the token contract (for Jetton/NFT)"
+          }
+        },
+        "required": [
+          "assetType",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "TransactionTraceNode": {
+        "additionalProperties": false,
+        "description": "Node in the transaction execution tree.",
+        "properties": {
+          "children": {
+            "description": "Child trace nodes representing spawned messages",
+            "items": {
+              "$ref": "#/components/schemas/TransactionTraceNode"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "type": "object"
+      },
+      "TransactionsUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/UserFriendlyAddress",
+            "description": "The account address"
+          },
+          "addressBook": {
+            "$ref": "#/components/schemas/AddressBook",
+            "description": "Address book from streaming v2 notification"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/TransactionAddressMetadata",
+            "description": "Metadata from streaming v2 notification"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StreamingUpdateStatus",
+            "description": "The finality of the update"
+          },
+          "transactions": {
+            "description": "The array of transactions",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "transactions"
+            ],
+            "description": "The update type field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "status",
+          "transactions",
+          "type"
+        ],
+        "type": "object"
+      },
+      "UnstakeModes": {
+        "description": "Mode of unstaking",
+        "enum": [
+          "INSTANT",
+          "WHEN_AVAILABLE",
+          "ROUND_END"
+        ],
+        "type": "string"
+      },
+      "UserFriendlyAddress": {
+        "description": "User-friendly TON address representation (e.g., \"EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2\")",
+        "type": "string"
+      },
+      "WalletId": {
+        "description": "Wallet ID - unique identifier for a wallet, should be different for similar wallets on different networks",
+        "type": "string"
+      }
+    }
+  }
+}
