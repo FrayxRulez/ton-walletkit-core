@@ -107,6 +107,15 @@ async function createAdapter(
     };
 }
 
+/** Wallets are owned by walletkit's WalletManager, addressed by its walletId. */
+function requireWallet(walletId: string): any {
+    const wallet = requireKit().getWallet(walletId);
+    if (!wallet) {
+        throw new Error(`Unknown walletId: ${walletId}`);
+    }
+    return wallet;
+}
+
 function describeWallet(wallet: any) {
     return {
         walletId: tryCall(wallet, 'getWalletId'),
@@ -252,6 +261,48 @@ interface InitConfig {
     async clearWallets(): Promise<{ ok: true }> {
         await requireKit().clearWallets();
         return { ok: true };
+    },
+
+    // ---- wallet operations (kit-ios wallet.* methods, walletId first) ------
+
+    /** Wallet balance in nanotons (kit-ios wallet.getBalance()). */
+    async getBalance(walletId: string): Promise<{ balance: string }> {
+        return { balance: String(await requireWallet(walletId).getBalance()) };
+    },
+
+    /**
+     * Builds an unsigned TON transfer (kit-ios wallet.createTransferTonTransaction).
+     * Fields are walletkit's own: recipientAddress, transferAmount (nanotons),
+     * and optionally comment | payload, stateInit, extraCurrency, mode.
+     */
+    async createTransferTonTransaction(walletId: string, params: unknown): Promise<unknown> {
+        return requireWallet(walletId).createTransferTonTransaction(params);
+    },
+
+    /** Fee/effect preview for a built transaction. */
+    async getTransactionPreview(walletId: string, transaction: unknown, options?: unknown): Promise<unknown> {
+        return requireWallet(walletId).getTransactionPreview(transaction, options);
+    },
+
+    /**
+     * Signs a transaction and returns the BOC. `fakeSignature: true` produces a
+     * correctly shaped but unusable signature — used for fee estimation and by
+     * tests, so no test can accidentally move real funds.
+     */
+    async getSignedSendTransaction(
+        walletId: string,
+        transaction: unknown,
+        options: { fakeSignature?: boolean } = {},
+    ): Promise<{ boc: string }> {
+        const boc = await requireWallet(walletId).getSignedSendTransaction(transaction, {
+            fakeSignature: options.fakeSignature ?? false,
+        });
+        return { boc: String(boc) };
+    },
+
+    /** Signs and broadcasts. This spends real funds — never called by tests. */
+    async sendTransaction(walletId: string, transaction: unknown): Promise<unknown> {
+        return requireWallet(walletId).sendTransaction(transaction);
     },
 
     /** Drops a retained signer/adapter. Ids are not collected automatically. */
