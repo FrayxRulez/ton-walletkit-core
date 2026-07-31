@@ -35,7 +35,7 @@ set(QJS_BUILD_CLI_STATIC OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/quickjs EXCLUDE_FROM_ALL)
 
 # ---- core library --------------------------- (M0: js_runtime/event_loop/client)
-# add_subdirectory(src)
+add_subdirectory(src)
 
 # ---- test driver ------------------------------------------ (M0: twk-cli)
 # if(TWK_BUILD_CLI)
@@ -49,6 +49,12 @@ if(TWK_BUILD_TESTS)
     add_executable(twk_qjs_smoke test/quickjs_smoke.c)
     target_link_libraries(twk_qjs_smoke PRIVATE qjs)
     add_test(NAME quickjs_smoke COMMAND twk_qjs_smoke)
+
+    # JsRuntime wrapper sanity (native global + eval + exception path).
+    add_executable(twk_engine_smoke test/engine_smoke.cpp)
+    target_link_libraries(twk_engine_smoke PRIVATE twk qjs)
+    target_include_directories(twk_engine_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME engine_smoke COMMAND twk_engine_smoke)
 endif()
 
 message(STATUS "ton-walletkit-core ${PROJECT_VERSION} configured (cli=${TWK_BUILD_CLI} tests=${TWK_BUILD_TESTS})")
