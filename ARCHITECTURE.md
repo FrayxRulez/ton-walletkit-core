@@ -144,6 +144,28 @@ timeout) — no Blob/FormData/streaming/redirects — so `fetch` is a small JSON
 and walletkit's own `ApiClientToncenter` keeps doing the endpoint building + parsing in JS (no native
 reimpl; stays canonical). Windows backs `http_request` with `sendTonCenterApiRequest`.
 
+### Mapping `http_request` → TDLib (the Windows binding)
+The TDLib schema (`td_api.tl`) is:
+```
+tonCenterApiRequestTypeGet  query:string   = TonCenterApiRequestType;
+tonCenterApiRequestTypePost payload:string = TonCenterApiRequestType;
+sendTonCenterApiRequest endpoint:string type:TonCenterApiRequestType = Text;
+```
+So TDLib wants **endpoint path + (query | payload)**, not a full URL — and it supplies the base URL and
+API key itself. The delegate therefore passes the **full URL** and lets the binding split it, which keeps
+the core host-agnostic (the libcurl reference host wants the whole URL):
+```csharp
+var uri = new Uri(url);                              // walletkit built this
+var type = method == "GET"
+    ? (TonCenterApiRequestType)new TonCenterApiRequestTypeGet(uri.Query.TrimStart('?'))
+    : new TonCenterApiRequestTypePost(body);
+var text = await _clientService.SendAsync(new SendTonCenterApiRequest(uri.AbsolutePath, type));
+twk_http_respond(client, token, 200, null, ((Text)text).TextValue);
+```
+Because TDLib owns the base URL, walletkit is configured with a placeholder base on Windows and only the
+path/query survive the mapping. Tests never use TDLib — the desktop reference host (libcurl) backs the
+same delegate, so the core and the JS above it are identical in both worlds.
+
 ## The JS layer
 `js/` builds a **walletkit-core-bridge** = the ported bridge (kind:call/response/event envelopes) with
 its transport bound to two host globals instead of a WebView channel:

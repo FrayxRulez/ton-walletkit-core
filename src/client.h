@@ -6,20 +6,32 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 #include "engine/event_loop.h"
 #include "host_context.h"
 
 struct twk_delegates;
+struct twk_client; // opaque handle from the public ABI (see include/twk/twk.h)
 
 namespace twk {
 
 class JsRuntime;
 class Shims;
+
+// Outcome of a host HTTP call, handed back to whoever registered the token.
+struct HttpResult {
+    bool ok = false;         // false => transport failure, `error` is set
+    int status = 0;          // HTTP status when ok
+    std::string headers_json;
+    std::string body;
+    std::string error;
+};
 
 // One client = one QuickJS runtime on one worker thread + an output queue.
 //
@@ -48,7 +60,30 @@ public:
     // finished loading; flushes any calls queued before readiness.
     void onJsReady();
 
+    // ---- host delegates ---------------------------------------------------
+
+    // Start an HTTP request via the host. `on_done` runs on the worker thread when
+    // the host completes it. Returns the token (usable with cancelHttp), or 0 if
+    // no http_request delegate is installed (on_done is then invoked immediately
+    // with a failure).
+    int64_t startHttp(const std::string& method, const std::string& url, const std::string& headers_json,
+                      const std::string& body, std::function<void(HttpResult)> on_done);
+
+    void cancelHttp(int64_t token);
+
+    // Called from twk_http_respond / twk_http_failed on any thread.
+    void completeHttp(int64_t token, HttpResult result);
+
+    // Runs `fn` only if `handle` is still a live client, holding the registry lock
+    // for the duration so it cannot be destroyed mid-call. Host completions arrive
+    // on host threads and can legitimately race destroy; this makes that safe
+    // instead of a use-after-free.
+    static void withLive(twk_client* handle, const std::function<void(Client&)>& fn);
+
 private:
+    static void registerLive(Client* client);
+    static void unregisterLive(Client* client);
+
     void onStart();
     void afterWork();
     void onStop();
@@ -70,6 +105,13 @@ private:
         std::string params_json;
     };
     std::deque<PendingCall> pending_;
+
+    // In-flight delegate calls. Guarded by its own mutex because completions
+    // arrive on arbitrary host threads; cleared on teardown so late completions
+    // for a destroyed client are dropped.
+    std::mutex tokens_mutex_;
+    int64_t next_token_ = 1;
+    std::unordered_map<int64_t, std::function<void(HttpResult)>> http_pending_;
 
     std::mutex out_mutex_;
     std::condition_variable out_cv_;

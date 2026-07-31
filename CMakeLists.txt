@@ -83,6 +83,12 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_mnemonic_smoke PRIVATE twk)
     add_test(NAME mnemonic_smoke COMMAND twk_mnemonic_smoke)
 
+    # Host-delegate seam (http_request round trip, cancel, teardown races).
+    add_executable(twk_delegate_smoke test/delegate_smoke.cpp)
+    target_link_libraries(twk_delegate_smoke PRIVATE twk)
+    target_include_directories(twk_delegate_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME delegate_smoke COMMAND twk_delegate_smoke)
+
     # Known-answer tests for the native crypto (RFC vectors + OpenSSL-generated).
     add_executable(twk_crypto_kat test/crypto_kat.cpp)
     target_link_libraries(twk_crypto_kat PRIVATE twk)
