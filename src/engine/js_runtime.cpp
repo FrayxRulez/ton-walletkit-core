@@ -53,6 +53,28 @@ bool JsRuntime::eval(const std::string& code, const std::string& filename, std::
     return true;
 }
 
+bool JsRuntime::evalBytecode(const uint8_t* data, size_t len, std::string* error) {
+    JSValue fn = JS_ReadObject(ctx_, data, len, JS_READ_OBJ_BYTECODE);
+    if (JS_IsException(fn)) {
+        JS_FreeValue(ctx_, fn);
+        if (error) {
+            *error = takeExceptionText();
+        }
+        return false;
+    }
+
+    JSValue result = JS_EvalFunction(ctx_, fn); // takes ownership of fn
+    if (JS_IsException(result)) {
+        JS_FreeValue(ctx_, result);
+        if (error) {
+            *error = takeExceptionText();
+        }
+        return false;
+    }
+    JS_FreeValue(ctx_, result);
+    return true;
+}
+
 void JsRuntime::registerGlobal(const char* name, JSCFunction* fn, int argc) {
     JSValue global = JS_GetGlobalObject(ctx_);
     JS_SetPropertyStr(ctx_, global, name, JS_NewCFunction(ctx_, fn, name, argc));

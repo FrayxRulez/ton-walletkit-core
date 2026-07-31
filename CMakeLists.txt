@@ -34,6 +34,11 @@ set(QJS_BUILD_EXAMPLES   OFF CACHE BOOL "" FORCE)
 set(QJS_BUILD_CLI_STATIC OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/quickjs EXCLUDE_FROM_ALL)
 
+# ---- build-time tools ------------------------------------------------------
+# twk-bundlec compiles the JS bundle to QuickJS bytecode; declared before src/,
+# which consumes it, and not gated on TWK_BUILD_CLI.
+add_subdirectory(tools/twk-bundlec)
+
 # ---- core library --------------------------- (M0: js_runtime/event_loop/client)
 add_subdirectory(src)
 

@@ -31,6 +31,10 @@ public:
     // the exception text.
     bool eval(const std::string& code, const std::string& filename, std::string* result_json, std::string* error);
 
+    // Run precompiled QuickJS bytecode (produced by twk-bundlec). Returns true on
+    // success; on failure `error` (if non-null) receives the exception text.
+    bool evalBytecode(const uint8_t* data, size_t len, std::string* error);
+
     // globalThis[name] = <native function>.
     void registerGlobal(const char* name, JSCFunction* fn, int argc);
 
