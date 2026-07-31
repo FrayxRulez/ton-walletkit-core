@@ -4,21 +4,48 @@ Regenerates the C# DTOs from `@ton/walletkit`'s own TypeScript types, mirroring
 kit-android's codegen so the bindings track upstream instead of drifting by hand.
 
     npm install
-    npm run build      # schema -> openapi -> csharp
+    npm run build      # surface -> schema -> openapi -> csharp
 
 Output: `bindings/csharp/src/Generated` (`TON*`-prefixed models).
 
 ## Pipeline
 
-1. **`ts-json-schema-generator`** reads `src/api-surface.ts`, which re-exports
-   walletkit's `api/models` barrel — the same surface kit-android generates from.
-2. **`schema-to-openapi.mjs`** wraps the schema in a minimal OpenAPI 3.0 document.
+1. **`build-surface.mjs`** writes `src/api-surface.ts`: one interface member per
+   type exported from walletkit's `api/models` barrel (following `export *`
+   re-exports). See below for why it is not a one-line re-export.
+2. **`ts-json-schema-generator`** turns that surface into JSON Schema. `--expose all`
+   gives every referenced type its own definition.
+3. **`schema-to-openapi.mjs`** wraps the schema in a minimal OpenAPI 3.0 document.
    It rewrites `const` to a single-value `enum`, because `const` is 3.1-only and
    ts-json-schema-generator emits it for every string-literal type (i.e. most
    discriminators).
-3. **`run-openapi-generator.mjs`** downloads the openapi-generator jar and runs
-   it. The jar is invoked directly rather than through the npm wrapper, which
-   breaks on older Node.
+4. **`run-openapi-generator.mjs`** downloads the openapi-generator jar, runs it,
+   copies out the models, and emits `GeneratedConverters.cs`. The jar is invoked
+   directly rather than through the npm wrapper, which breaks on older Node.
+
+## Why the surface is generated
+
+`export type * from '…/api/models'` plus `--type "*"` looks equivalent, and it is
+what this used to do — but the generator silently skipped **57** of the exported
+types, including most of the request/response shapes the wallet API is made of
+(`TONTransferRequest`, `JettonsResponse`, `ConnectionRequestEvent`,
+`TONConnectSession`, `PreparedSignData`, `TransactionsResponse`, …). Naming a type
+explicitly always works, so the surface names them all. The list comes from
+walletkit's own barrel, so upstream additions are picked up on the next run.
+
+A few names are skipped, each for a reason recorded in `build-surface.mjs`:
+generic (`Result<T>`), value-not-type (`UnstakeMode`), or a union that the C#
+generator cannot express (`TokenAddress`, which is just a string).
+
+## Registering the converters
+
+The generated converters are classes, not attributes, so nothing uses them until
+they are added to a `JsonSerializerOptions`. generichost does that in
+`HostConfiguration.cs` — DI scaffolding we drop — so the runner lifts its list
+into `GeneratedConverters.AddTo(options)`, which `TonJson` calls. Note that
+`JsonStringEnumConverter` is deliberately **not** registered: it matches every
+enum first and would write the C# name (`"Ton"`) instead of the wire value
+(`"ton"`) that the generated per-enum converters know.
 
 ## Pinned versions, and why
 

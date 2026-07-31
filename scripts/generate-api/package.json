@@ -3,10 +3,11 @@
   "private": true,
   "description": "Regenerates the C# DTOs from @ton/walletkit's TypeScript types, mirroring kit-android's codegen so the bindings stay in sync with upstream.",
   "scripts": {
+    "surface": "node build-surface.mjs",
     "schema": "ts-json-schema-generator --path src/api-surface.ts --tsconfig tsconfig.json --type \"*\" --expose all --no-top-ref --out build/schema.json",
     "openapi": "node schema-to-openapi.mjs",
     "csharp": "node run-openapi-generator.mjs",
-    "build": "npm run schema && npm run openapi && npm run csharp"
+    "build": "npm run surface && npm run schema && npm run openapi && npm run csharp"
   },
   "devDependencies": {
     "ts-json-schema-generator": "2.4.0",

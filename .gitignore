@@ -23,6 +23,11 @@ compile_commands.json
 /js/dist/
 /js/.esbuild/
 
+# codegen: node_modules, the downloaded generator jar, and the staging output.
+# Only the generated C# under bindings/ is committed.
+/scripts/generate-api/node_modules/
+/scripts/generate-api/build/
+
 # editors / os
 .DS_Store
 .vs/

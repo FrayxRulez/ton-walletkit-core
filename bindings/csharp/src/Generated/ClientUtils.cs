@@ -132,14 +132,20 @@ namespace Ton.WalletKit.Api.Client
                 return TONConnectionRequestEventRequestedItemAnyOf1.TypeEnumToJsonValue(tONConnectionRequestEventRequestedItemAnyOf1TypeEnum);
             if (obj is TONConnectionRequestEventRequestedItemAnyOf2.TypeEnum tONConnectionRequestEventRequestedItemAnyOf2TypeEnum)
                 return TONConnectionRequestEventRequestedItemAnyOf2.TypeEnumToJsonValue(tONConnectionRequestEventRequestedItemAnyOf2TypeEnum);
+            if (obj is TONDefiProviderType tONDefiProviderType)
+                return TONDefiProviderTypeValueConverter.ToJsonValue(tONDefiProviderType);
             if (obj is TONEmbeddedRequest.MethodEnum tONEmbeddedRequestMethodEnum)
                 return TONEmbeddedRequest.MethodEnumToJsonValue(tONEmbeddedRequestMethodEnum);
+            if (obj is TONEmbeddedRequestEvent.TypeEnum tONEmbeddedRequestEventTypeEnum)
+                return TONEmbeddedRequestEvent.TypeEnumToJsonValue(tONEmbeddedRequestEventTypeEnum);
             if (obj is TONEmbeddedSendTransactionRequestEvent.TypeEnum tONEmbeddedSendTransactionRequestEventTypeEnum)
                 return TONEmbeddedSendTransactionRequestEvent.TypeEnumToJsonValue(tONEmbeddedSendTransactionRequestEventTypeEnum);
             if (obj is TONEmbeddedSignDataRequestEvent.TypeEnum tONEmbeddedSignDataRequestEventTypeEnum)
                 return TONEmbeddedSignDataRequestEvent.TypeEnumToJsonValue(tONEmbeddedSignDataRequestEventTypeEnum);
             if (obj is TONEmbeddedSignMessageRequestEvent.TypeEnum tONEmbeddedSignMessageRequestEventTypeEnum)
                 return TONEmbeddedSignMessageRequestEvent.TypeEnumToJsonValue(tONEmbeddedSignMessageRequestEventTypeEnum);
+            if (obj is TONEmulationResult.ResultEnum tONEmulationResultResultEnum)
+                return TONEmulationResult.ResultEnumToJsonValue(tONEmulationResultResultEnum);
             if (obj is TONEmulationResultError.ResultEnum tONEmulationResultErrorResultEnum)
                 return TONEmulationResultError.ResultEnumToJsonValue(tONEmulationResultErrorResultEnum);
             if (obj is TONEmulationResultSuccess.ResultEnum tONEmulationResultSuccessResultEnum)
@@ -188,18 +194,24 @@ namespace Ton.WalletKit.Api.Client
                 return TONSignDataPreviewAnyOf2.TypeEnumToJsonValue(tONSignDataPreviewAnyOf2TypeEnum);
             if (obj is TONSignMessageEmbeddedRequest.MethodEnum tONSignMessageEmbeddedRequestMethodEnum)
                 return TONSignMessageEmbeddedRequest.MethodEnumToJsonValue(tONSignMessageEmbeddedRequestMethodEnum);
+            if (obj is TONSignatureDomain.TypeEnum tONSignatureDomainTypeEnum)
+                return TONSignatureDomain.TypeEnumToJsonValue(tONSignatureDomainTypeEnum);
             if (obj is TONSignatureDomainEmpty.TypeEnum tONSignatureDomainEmptyTypeEnum)
                 return TONSignatureDomainEmpty.TypeEnumToJsonValue(tONSignatureDomainEmptyTypeEnum);
             if (obj is TONSignatureDomainL2.TypeEnum tONSignatureDomainL2TypeEnum)
                 return TONSignatureDomainL2.TypeEnumToJsonValue(tONSignatureDomainL2TypeEnum);
             if (obj is TONStakingQuoteDirection tONStakingQuoteDirection)
                 return TONStakingQuoteDirectionValueConverter.ToJsonValue(tONStakingQuoteDirection);
+            if (obj is TONStreamingUpdate.TypeEnum tONStreamingUpdateTypeEnum)
+                return TONStreamingUpdate.TypeEnumToJsonValue(tONStreamingUpdateTypeEnum);
             if (obj is TONStreamingUpdateStatus tONStreamingUpdateStatus)
                 return TONStreamingUpdateStatusValueConverter.ToJsonValue(tONStreamingUpdateStatus);
             if (obj is TONStreamingWatchType tONStreamingWatchType)
                 return TONStreamingWatchTypeValueConverter.ToJsonValue(tONStreamingWatchType);
             if (obj is TONStructuredItem.TypeEnum tONStructuredItemTypeEnum)
                 return TONStructuredItem.TypeEnumToJsonValue(tONStructuredItemTypeEnum);
+            if (obj is TONStructuredItemType tONStructuredItemType)
+                return TONStructuredItemTypeValueConverter.ToJsonValue(tONStructuredItemType);
             if (obj is TONTonTransferItem.TypeEnum tONTonTransferItemTypeEnum)
                 return TONTonTransferItem.TypeEnumToJsonValue(tONTonTransferItemTypeEnum);
             if (obj is TONTransactionPreviewMode tONTransactionPreviewMode)
