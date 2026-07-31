@@ -127,6 +127,12 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_concurrency_stress PRIVATE twk)
     add_test(NAME concurrency_stress COMMAND twk_concurrency_stress)
 
+    # Loads twk.dll dynamically by name, as a binding (P/Invoke) does.
+    add_executable(twk_shared_lib_smoke test/shared_lib_smoke.cpp)
+    add_dependencies(twk_shared_lib_smoke twk_shared)
+    add_test(NAME shared_lib_smoke COMMAND twk_shared_lib_smoke)
+    # The DLL sits next to the test binary in bin/, so the default search path finds it.
+
     # SSE framing parser (multi-line data, comments, CRLF, chunk boundaries).
     add_executable(twk_sse_parser_test test/sse_parser_test.cpp)
     target_link_libraries(twk_sse_parser_test PRIVATE twk_refhost)

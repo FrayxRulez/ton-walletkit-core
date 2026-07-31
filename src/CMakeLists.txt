@@ -27,7 +27,7 @@ else()
     add_custom_target(twk_bundle_bytecode DEPENDS ${TWK_BC_HEADER})
 endif()
 
-add_library(twk STATIC
+set(TWK_SOURCES
     engine/js_runtime.cpp
     engine/event_loop.cpp
     util/base64.cpp
@@ -36,6 +36,11 @@ add_library(twk STATIC
     bridge/transport.cpp
     client.cpp
 )
+
+add_library(twk STATIC ${TWK_SOURCES})
+# The DLL owns the plain `twk` name (its import library is twk.lib), so the
+# static lib is suffixed to avoid colliding with it.
+set_target_properties(twk PROPERTIES OUTPUT_NAME twk_static)
 
 target_include_directories(twk
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/../include      # public C ABI (twk.h)
@@ -56,4 +61,36 @@ target_link_libraries(twk PRIVATE qjs)
 # Platform crypto for the RNG / PBKDF2 shims (M2 routes these through host delegates).
 if(WIN32)
     target_link_libraries(twk PRIVATE bcrypt)
+endif()
+
+# ---- shared library (twk.dll) ----------------------------------------------
+# The bindings (C#/Swift/Kotlin) load this, so it must be built separately rather
+# than wrapped around the static lib: MSVC only emits exports for translation
+# units compiled with __declspec(dllexport), which the static build lacks.
+add_library(twk_shared SHARED ${TWK_SOURCES})
+set_target_properties(twk_shared PROPERTIES OUTPUT_NAME twk)
+
+target_compile_definitions(twk_shared PRIVATE TWK_BUILDING_SHARED=1)
+target_include_directories(twk_shared
+    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE ${CMAKE_SOURCE_DIR}/js/dist
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated
+)
+target_link_libraries(twk_shared PRIVATE qjs)
+
+if(TWK_USE_BYTECODE)
+    add_dependencies(twk_shared twk_bundle_bytecode)
+    target_compile_definitions(twk_shared PRIVATE TWK_BUNDLE_BYTECODE=1)
+endif()
+
+if(WIN32)
+    target_link_libraries(twk_shared PRIVATE bcrypt)
+endif()
+
+# Non-Windows: hide everything except the TWK_EXPORT-marked ABI.
+if(NOT WIN32)
+    set_target_properties(twk_shared PROPERTIES C_VISIBILITY_PRESET hidden
+                                                CXX_VISIBILITY_PRESET hidden
+                                                VISIBILITY_INLINES_HIDDEN ON)
 endif()
