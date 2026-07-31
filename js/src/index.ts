@@ -28,6 +28,10 @@ async function bootstrap(): Promise<void> {
         await import('./polyfills/url');
         loading = 'generic';
         await import('./polyfills/generic');
+        // After generic.ts: it installs an inert AbortController that cannot
+        // cancel, so ours must win.
+        loading = 'fetch';
+        await import('./polyfills/fetch');
 
         loading = 'main';
         await import('./main');

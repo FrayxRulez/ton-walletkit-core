@@ -83,6 +83,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_mnemonic_smoke PRIVATE twk)
     add_test(NAME mnemonic_smoke COMMAND twk_mnemonic_smoke)
 
+    # JS fetch shim end to end (fetch -> __twk_http -> delegate -> Response).
+    add_executable(twk_fetch_smoke test/fetch_smoke.cpp)
+    target_link_libraries(twk_fetch_smoke PRIVATE twk)
+    add_test(NAME fetch_smoke COMMAND twk_fetch_smoke)
+
     # Host-delegate seam (http_request round trip, cancel, teardown races).
     add_executable(twk_delegate_smoke test/delegate_smoke.cpp)
     target_link_libraries(twk_delegate_smoke PRIVATE twk)

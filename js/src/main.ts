@@ -40,6 +40,41 @@ import { hmac_sha512, pbkdf2_sha512, sha256, sha512, getSecureRandomBytes } from
         return out;
     },
 
+    // Exercises the fetch shim end to end (used by the fetch tests): performs a
+    // real request through the host delegate and reports what came back.
+    async httpProbe(url: string, options?: { method?: string; body?: string; timeoutMs?: number }): Promise<unknown> {
+        const method = options?.method ?? 'GET';
+        const timeoutMs = options?.timeoutMs ?? 0;
+
+        const init: any = { method, headers: { 'x-probe': '1' } };
+        if (options?.body != null) {
+            init.body = options.body;
+            init.headers['content-type'] = 'application/json';
+        }
+
+        let timer: any;
+        if (timeoutMs > 0) {
+            const controller = new AbortController();
+            init.signal = controller.signal;
+            timer = setTimeout(() => controller.abort(), timeoutMs);
+        }
+
+        try {
+            const response = await fetch(url, init);
+            const text = await response.text();
+            return {
+                ok: response.ok,
+                status: response.status,
+                contentType: response.headers.get('content-type'),
+                body: text,
+            };
+        } catch (error: any) {
+            return { failed: true, name: error?.name ?? 'Error', message: String(error?.message ?? error) };
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    },
+
     // Diagnostic helpers used by the transport tests (harmless in production).
     async echo(value: unknown): Promise<unknown> {
         return value ?? null;

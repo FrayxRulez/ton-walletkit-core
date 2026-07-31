@@ -170,7 +170,14 @@ void Client::afterWork() {
 }
 
 void Client::onStop() {
-    shims_.reset(); // frees timer JSValues while the context is still alive (worker thread)
+    // Pending HTTP handlers can hold JSValues (the fetch shim's callback), so they
+    // must be released here — on the worker thread, while the context is still
+    // alive. Dropping them in ~Client would free JSValues after the runtime is gone.
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        http_pending_.clear();
+    }
+    shims_.reset(); // frees timer JSValues while the context is still alive
     delete js_;
     js_ = nullptr;
 }

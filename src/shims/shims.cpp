@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "client.h"
 #include "engine/event_loop.h"
 #include "engine/js_runtime.h"
 #include "host_context.h"
@@ -163,6 +164,90 @@ JSValue js_pbkdf2_derive(JSContext* ctx, JSValueConst /*this_val*/, int argc, JS
     return JS_NewStringLen(ctx, b64.data(), b64.size());
 }
 
+// ---- __twk_http: the primitive the JS fetch shim is built on ---------------
+// __twk_http(method, url, headersJson, bodyOrNull, cb) -> token
+//   cb(error | null, status, headersJson, body) runs on the worker thread.
+// Callbacks (not promises) keep the C++ side simple; the JS shim wraps this in a
+// Promise and layers Headers/Response/AbortController on top.
+JSValue js_http(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr) {
+        return JS_ThrowInternalError(ctx, "__twk_http: no client");
+    }
+    if (argc < 5 || !JS_IsFunction(ctx, argv[4])) {
+        return JS_ThrowTypeError(ctx, "__twk_http(method, url, headersJson, body, cb)");
+    }
+
+    auto str = [&](JSValueConst v) -> std::string {
+        if (JS_IsUndefined(v) || JS_IsNull(v)) {
+            return {};
+        }
+        const char* s = JS_ToCString(ctx, v);
+        if (s == nullptr) {
+            return {};
+        }
+        std::string out(s);
+        JS_FreeCString(ctx, s);
+        return out;
+    };
+
+    std::string method = str(argv[0]);
+    std::string url = str(argv[1]);
+    std::string headers = str(argv[2]);
+    std::string body = str(argv[3]);
+
+    // Owns a reference to the JS callback and releases it however the handler
+    // ends — invoked, cancelled, or dropped at teardown. Client::onStop clears
+    // pending handlers while the context is still alive, so this is safe.
+    struct CallbackRef {
+        JSContext* ctx;
+        JSValue fn;
+        CallbackRef(JSContext* c, JSValue f) : ctx(c), fn(f) {}
+        // Non-copyable: a copy would double-free the reference (and constructing
+        // from a temporary would free it immediately).
+        CallbackRef(const CallbackRef&) = delete;
+        CallbackRef& operator=(const CallbackRef&) = delete;
+        ~CallbackRef() { JS_FreeValue(ctx, fn); }
+    };
+    auto cb = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[4]));
+
+    int64_t token = client->startHttp(method, url, headers, body, [client, cb](HttpResult result) {
+        JSContext* c = client->js()->context();
+        JSValue args[4];
+        args[0] = result.ok ? JS_NULL : JS_NewString(c, result.error.c_str());
+        args[1] = JS_NewInt32(c, result.status);
+        args[2] = JS_NewString(c, result.headers_json.c_str());
+        args[3] = JS_NewString(c, result.body.c_str());
+
+        JSValue global = JS_GetGlobalObject(c);
+        JSValue ret = JS_Call(c, cb->fn, global, 4, args);
+        if (JS_IsException(ret)) {
+            std::fprintf(stderr, "[http] uncaught: %s\n", client->js()->takeExceptionText().c_str());
+        }
+
+        JS_FreeValue(c, ret);
+        JS_FreeValue(c, global);
+        for (JSValue& arg : args) {
+            JS_FreeValue(c, arg);
+        }
+    });
+
+    return JS_NewInt64(ctx, token);
+}
+
+JSValue js_http_cancel(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr || argc < 1) {
+        return JS_UNDEFINED;
+    }
+    int64_t token = 0;
+    JS_ToInt64(ctx, &token, argv[0]);
+    client->cancelHttp(token);
+    return JS_UNDEFINED;
+}
+
 JSValue js_set_timer(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv, bool repeat) {
     Shims* shims = shims_of(ctx);
     if (shims == nullptr || argc < 1 || !JS_IsFunction(ctx, argv[0])) {
@@ -247,6 +332,11 @@ void Shims::install() {
         JS_SetPropertyStr(ctx, nc, "pbkdf2Sha512", JS_NewCFunction(ctx, js_pbkdf2, "pbkdf2Sha512", 4));
         JS_SetPropertyStr(ctx, global, "__twk_crypto", nc);
     }
+
+    // HTTP primitive (the JS fetch shim builds Headers/Response/fetch on this).
+    JS_SetPropertyStr(ctx, global, "__twk_http", JS_NewCFunction(ctx, js_http, "__twk_http", 5));
+    JS_SetPropertyStr(ctx, global, "__twk_http_cancel",
+                      JS_NewCFunction(ctx, js_http_cancel, "__twk_http_cancel", 1));
 
     // timers
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_set_timeout, "setTimeout", 2));
