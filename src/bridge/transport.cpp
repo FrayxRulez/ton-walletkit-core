@@ -53,6 +53,19 @@ void emit_envelope(JSContext* ctx, Client& client, uint64_t request_id, const ch
     client.emit(request_id, std::move(json));
 }
 
+// __twk_event(payload) — JS pushes an unsolicited update (a TON Connect request,
+// a disconnect, …). Delivered through twk_receive with request_id = 0, since it
+// answers no request.
+JSValue js_event(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr || argc < 1) {
+        return JS_UNDEFINED;
+    }
+    emit_envelope(ctx, *client, 0, "event", argv[0]);
+    return JS_UNDEFINED;
+}
+
 // promise.then fulfilment -> {result: value}
 JSValue on_resolve(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv, int /*magic*/,
                    JSValueConst* func_data) {
@@ -109,6 +122,7 @@ void attach(JsRuntime& js, Client& client, uint64_t request_id, JSValueConst res
 
 bool install(JsRuntime& js, std::string* error) {
     js.registerGlobal("__twk_ready", js_ready, 0);
+    js.registerGlobal("__twk_event", js_event, 1);
 
 #if TWK_BUNDLE_BYTECODE
     // Precompiled at build time by twk-bundlec: deserialize and run, skipping the

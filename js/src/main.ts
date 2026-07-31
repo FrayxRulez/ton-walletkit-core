@@ -107,6 +107,36 @@ async function createAdapter(
     };
 }
 
+/**
+ * Push an unsolicited update to the host. It surfaces from twk_receive with
+ * request_id = 0, because it answers no request.
+ */
+function emitEvent(type: string, payload: unknown): void {
+    const emit = (globalThis as any).__twk_event;
+    if (typeof emit === 'function') {
+        emit({ type, payload });
+    }
+}
+
+/**
+ * Forward walletkit's callbacks as events (kit-ios setEventsListeners). These are
+ * the TON Connect approval requests the host must show the user; respond with the
+ * matching approve/reject method, passing the event payload back.
+ */
+function attachEventListeners(instance: TonWalletKit): void {
+    const anyKit = instance as any;
+    const wire = (register: string, type: string) => {
+        if (typeof anyKit[register] === 'function') {
+            anyKit[register](async (event: unknown) => emitEvent(type, event));
+        }
+    };
+    wire('onConnectRequest', 'connectRequest');
+    wire('onTransactionRequest', 'transactionRequest');
+    wire('onSignDataRequest', 'signDataRequest');
+    wire('onSignMessageRequest', 'signMessageRequest');
+    wire('onDisconnect', 'disconnect');
+}
+
 /** Wallets are owned by walletkit's WalletManager, addressed by its walletId. */
 function requireWallet(walletId: string): any {
     const wallet = requireKit().getWallet(walletId);
@@ -180,6 +210,7 @@ interface InitConfig {
             dev: config.dev,
         });
         await kit.ensureInitialized();
+        attachEventListeners(kit);
 
         return { networks: Object.keys(networks) };
     },
@@ -303,6 +334,53 @@ interface InitConfig {
     /** Signs and broadcasts. This spends real funds — never called by tests. */
     async sendTransaction(walletId: string, transaction: unknown): Promise<unknown> {
         return requireWallet(walletId).sendTransaction(transaction);
+    },
+
+    // ---- TON Connect (kit-ios names; events arrive as unsolicited updates) --
+
+    async handleTonConnectUrl(url: string): Promise<unknown> {
+        return requireKit().handleTonConnectUrl(url);
+    },
+
+    async getSessions(): Promise<unknown> {
+        return requireKit().listSessions();
+    },
+
+    async disconnect(sessionId: string): Promise<{ ok: true }> {
+        await requireKit().disconnect(sessionId);
+        return { ok: true };
+    },
+
+    // Approve/reject take the event payload delivered by the corresponding event.
+    async approveConnectRequest(event: any, response?: any): Promise<unknown> {
+        return requireKit().approveConnectRequest(event, response);
+    },
+    async rejectConnectRequest(event: any, reason?: string): Promise<unknown> {
+        return requireKit().rejectConnectRequest(event, reason);
+    },
+    async approveTransactionRequest(event: any, response?: any): Promise<unknown> {
+        return requireKit().approveTransactionRequest(event, response);
+    },
+    async rejectTransactionRequest(event: any, reason?: string): Promise<unknown> {
+        return requireKit().rejectTransactionRequest(event, reason);
+    },
+    async approveSignDataRequest(event: any, response?: any): Promise<unknown> {
+        return requireKit().approveSignDataRequest(event, response);
+    },
+    async rejectSignDataRequest(event: any, reason?: string): Promise<unknown> {
+        return requireKit().rejectSignDataRequest(event, reason);
+    },
+    async approveSignMessageRequest(event: any, response?: any): Promise<unknown> {
+        return requireKit().approveSignMessageRequest(event, response);
+    },
+    async rejectSignMessageRequest(event: any, reason?: string): Promise<unknown> {
+        return requireKit().rejectSignMessageRequest(event, reason);
+    },
+
+    /** Test hook: pushes an event without a dapp, to exercise the update path. */
+    async emitTestEvent(type: string, payload: unknown): Promise<{ ok: true }> {
+        emitEvent(type, payload);
+        return { ok: true };
     },
 
     /** Drops a retained signer/adapter. Ids are not collected automatically. */

@@ -92,6 +92,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_balance_smoke PRIVATE twk)
     add_test(NAME balance_smoke COMMAND twk_balance_smoke)
 
+    # Unsolicited updates (request_id=0) and their interleaving with responses.
+    add_executable(twk_event_smoke test/event_smoke.cpp)
+    target_link_libraries(twk_event_smoke PRIVATE twk)
+    add_test(NAME event_smoke COMMAND twk_event_smoke)
+
     # M3 exit: full wallet lifecycle + restore-from-mnemonic, against fixtures.
     add_executable(twk_lifecycle_smoke test/lifecycle_smoke.cpp)
     target_link_libraries(twk_lifecycle_smoke PRIVATE twk)
