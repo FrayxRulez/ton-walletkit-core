@@ -72,6 +72,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_bridge_smoke PRIVATE twk)
     add_test(NAME bridge_smoke COMMAND twk_bridge_smoke)
 
+    # M1 exit: createMnemonic through the real walletkit bundle -> 24 words.
+    add_executable(twk_mnemonic_smoke test/mnemonic_smoke.cpp)
+    target_link_libraries(twk_mnemonic_smoke PRIVATE twk)
+    add_test(NAME mnemonic_smoke COMMAND twk_mnemonic_smoke)
+
     # Host shims (console / getRandomValues / Pbkdf2 / timers).
     add_executable(twk_shims_smoke test/shims_smoke.cpp)
     target_link_libraries(twk_shims_smoke PRIVATE twk qjs)

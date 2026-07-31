@@ -11,6 +11,7 @@
 #include "engine/event_loop.h"
 #include "engine/js_runtime.h"
 #include "host_context.h"
+#include "util/base64.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -50,15 +51,21 @@ bool platform_pbkdf2_sha512(const std::vector<uint8_t>& password, const std::vec
         return true;
     }
 #if defined(_WIN32)
-    BCRYPT_ALG_HANDLE alg = nullptr;
-    if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA512_ALGORITHM, nullptr, BCRYPT_ALG_HANDLE_HMAC_FLAG) != 0) {
+    // Open the HMAC-SHA512 provider once and reuse it: the TON mnemonic retry loop
+    // calls this hundreds of times, and re-opening per call dominated the cost.
+    // BCrypt algorithm handles are safe for concurrent BCryptDeriveKeyPBKDF2 use.
+    static BCRYPT_ALG_HANDLE alg = [] {
+        BCRYPT_ALG_HANDLE handle = nullptr;
+        BCryptOpenAlgorithmProvider(&handle, BCRYPT_SHA512_ALGORITHM, nullptr, BCRYPT_ALG_HANDLE_HMAC_FLAG);
+        return handle;
+    }();
+    if (alg == nullptr) {
         return false;
     }
     NTSTATUS status = BCryptDeriveKeyPBKDF2(
         alg, const_cast<PUCHAR>(password.data()), static_cast<ULONG>(password.size()),
         const_cast<PUCHAR>(salt.data()), static_cast<ULONG>(salt.size()), iterations, out.data(),
         static_cast<ULONG>(out.size()), 0);
-    BCryptCloseAlgorithmProvider(alg, 0);
     return status == 0;
 #else
     (void)password;
@@ -66,62 +73,6 @@ bool platform_pbkdf2_sha512(const std::vector<uint8_t>& password, const std::vec
     (void)iterations;
     return false;
 #endif
-}
-
-// ---- base64 ---------------------------------------------------------------
-
-const char kB64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-std::string base64_encode(const uint8_t* data, size_t len) {
-    std::string out;
-    out.reserve((len + 2) / 3 * 4);
-    size_t i = 0;
-    for (; i + 3 <= len; i += 3) {
-        uint32_t n = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
-        out += kB64[(n >> 18) & 63];
-        out += kB64[(n >> 12) & 63];
-        out += kB64[(n >> 6) & 63];
-        out += kB64[n & 63];
-    }
-    if (len - i == 1) {
-        uint32_t n = data[i] << 16;
-        out += kB64[(n >> 18) & 63];
-        out += kB64[(n >> 12) & 63];
-        out += "==";
-    } else if (len - i == 2) {
-        uint32_t n = (data[i] << 16) | (data[i + 1] << 8);
-        out += kB64[(n >> 18) & 63];
-        out += kB64[(n >> 12) & 63];
-        out += kB64[(n >> 6) & 63];
-        out += '=';
-    }
-    return out;
-}
-
-std::vector<uint8_t> base64_decode(const char* s, size_t len) {
-    int8_t rev[256];
-    std::memset(rev, -1, sizeof(rev));
-    for (int i = 0; i < 64; ++i) {
-        rev[static_cast<uint8_t>(kB64[i])] = static_cast<int8_t>(i);
-    }
-
-    std::vector<uint8_t> out;
-    out.reserve(len / 4 * 3);
-    uint32_t buf = 0;
-    int bits = 0;
-    for (size_t i = 0; i < len; ++i) {
-        int8_t v = rev[static_cast<uint8_t>(s[i])];
-        if (v < 0) {
-            continue; // skip '=', whitespace, newlines
-        }
-        buf = (buf << 6) | static_cast<uint32_t>(v);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            out.push_back(static_cast<uint8_t>((buf >> bits) & 0xff));
-        }
-    }
-    return out;
 }
 
 // ---- native shim functions ------------------------------------------------
@@ -186,8 +137,8 @@ JSValue js_pbkdf2_derive(JSContext* ctx, JSValueConst /*this_val*/, int argc, JS
     JS_ToInt64(ctx, &iterations, argv[2]);
     JS_ToInt64(ctx, &key_len, argv[3]);
 
-    std::vector<uint8_t> pw_bytes = pw != nullptr ? base64_decode(pw, pw_len) : std::vector<uint8_t>{};
-    std::vector<uint8_t> salt_bytes = salt != nullptr ? base64_decode(salt, salt_len) : std::vector<uint8_t>{};
+    std::vector<uint8_t> pw_bytes = pw != nullptr ? base64::decode(pw, pw_len) : std::vector<uint8_t>{};
+    std::vector<uint8_t> salt_bytes = salt != nullptr ? base64::decode(salt, salt_len) : std::vector<uint8_t>{};
     if (pw != nullptr) {
         JS_FreeCString(ctx, pw);
     }
@@ -204,7 +155,7 @@ JSValue js_pbkdf2_derive(JSContext* ctx, JSValueConst /*this_val*/, int argc, JS
         return JS_ThrowInternalError(ctx, "Pbkdf2.derive: PBKDF2 failure");
     }
 
-    std::string b64 = base64_encode(out.data(), out.size());
+    std::string b64 = base64::encode(out.data(), out.size());
     return JS_NewStringLen(ctx, b64.data(), b64.size());
 }
 

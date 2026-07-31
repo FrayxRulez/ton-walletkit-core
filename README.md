@@ -20,11 +20,22 @@ third_party/     vendored deps (QuickJS-ng submodule)
 ```
 
 ## Build (desktop)
+Requires **Node ≥ 24** (for the JS bundle), a C++17 toolchain, and CMake.
+
 ```sh
 git clone --recurse-submodules <url>
+
+# 1. Build the embedded JS bundle -> js/dist/bundle.{js,h}
+cd js && npm ci && npm run build && cd ..
+
+# 2. Build + test the native core
 cmake -B build -S .
 cmake --build build
 ```
+
+The native build embeds `js/dist/bundle.h`, so step 1 must run first (CI wiring
+comes in M8). On Windows, `scripts\win-build.bat amd64 test` does the CMake +
+Ninja build and runs the tests under the MSVC toolchain.
 
 ## Status
 Early scaffolding — see `ROADMAP.md`. Milestone **M0** (walking skeleton) in progress.

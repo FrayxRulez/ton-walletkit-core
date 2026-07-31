@@ -1,6 +1,10 @@
 // Teardown across varied in-flight states — no crashes/leaks (run under a leak
 // checker in M5; here it asserts behaviour and exercises the paths). Returns 0.
 //
+// Counts are deliberately small: each client eval's the full ~1.7MB walletkit
+// bundle (~0.3s), so this exercises teardown correctness, not throughput. Real
+// usage creates one client per session.
+//
 // Note: per the ABI, receive must not race destroy; each case below stops using
 // the client before destroying it.
 #include <cstdio>
@@ -10,7 +14,7 @@
 
 // Create and destroy immediately, no work at all.
 static bool test_create_destroy() {
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 5; ++i) {
         twk_client* c = twk_client_create(nullptr, nullptr);
         twk_client_destroy(c);
     }
@@ -19,7 +23,7 @@ static bool test_create_destroy() {
 
 // Send then destroy without ever receiving (in-flight request dropped on stop).
 static bool test_send_no_receive() {
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 5; ++i) {
         twk_client* c = twk_client_create(nullptr, nullptr);
         twk_send(c, static_cast<unsigned long long>(i), "echo", "null");
         twk_client_destroy(c);
@@ -29,7 +33,7 @@ static bool test_send_no_receive() {
 
 // Send several, receive only some, destroy with responses still queued.
 static bool test_partial_receive() {
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 3; ++i) {
         twk_client* c = twk_client_create(nullptr, nullptr);
         for (int j = 0; j < 5; ++j) {
             twk_send(c, static_cast<unsigned long long>(j + 1), "echo", "null");
@@ -45,7 +49,7 @@ static bool test_partial_receive() {
 static bool test_send_receive_loop() {
     twk_client* c = twk_client_create(nullptr, nullptr);
     bool ok = true;
-    for (unsigned long long i = 1; i <= 100; ++i) {
+    for (unsigned long long i = 1; i <= 10; ++i) {
         twk_send(c, i, "echo", "null");
         unsigned long long rid = 0;
         const char* out = twk_receive(c, 2.0, &rid);

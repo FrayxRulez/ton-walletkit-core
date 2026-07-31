@@ -25,13 +25,14 @@
 
 #include "twk/twk.h"
 
-static void receiveLoop(twk_client* client, std::atomic<bool>* running) {
+static void receiveLoop(twk_client* client, std::atomic<bool>* running, std::atomic<int>* received) {
     while (running->load()) {
         unsigned long long rid = 0;
         const char* out = twk_receive(client, 0.1, &rid);
         if (out) {
             std::printf("<< id=%llu %s\n", rid, out);
             std::fflush(stdout);
+            received->fetch_add(1);
         }
     }
 }
@@ -40,7 +41,9 @@ int main(int argc, char** argv) {
     twk_client* client = twk_client_create(nullptr, nullptr);
 
     std::atomic<bool> running{true};
-    std::thread rx(receiveLoop, client, &running);
+    std::atomic<int> received{0};
+    int sent = 0;
+    std::thread rx(receiveLoop, client, &running, &received);
 
     std::ifstream file;
     std::istream* in = &std::cin;
@@ -82,11 +85,16 @@ int main(int argc, char** argv) {
         std::printf(">> id=%llu method=%s\n", id, method.c_str());
         std::fflush(stdout);
         twk_send(client, id, method.c_str(), params.empty() ? nullptr : params.c_str());
+        ++sent;
     }
 
-    // Give in-flight responses a moment to arrive, then tear down cleanly:
-    // stop the receive thread and join it BEFORE destroying the client.
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    // Wait for every response (loading the full bundle can take a moment), up to a
+    // generous cap, then tear down cleanly: stop the receive thread and join it
+    // BEFORE destroying the client.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (received.load() < sent && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     running.store(false);
     rx.join();
     twk_client_destroy(client);

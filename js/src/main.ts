@@ -15,6 +15,14 @@ import { CreateTonMnemonic } from '@ton/walletkit';
     async createMnemonic(): Promise<string[]> {
         return await CreateTonMnemonic();
     },
+
+    // Diagnostic helpers used by the transport tests (harmless in production).
+    async echo(value: unknown): Promise<unknown> {
+        return value ?? null;
+    },
+    async fail(): Promise<never> {
+        throw new Error('boom');
+    },
 };
 
 // Signal to the host that the bundle finished loading and walletKit is ready.

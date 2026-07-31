@@ -79,7 +79,7 @@ static bool test_ordering() {
 }
 
 static bool test_churn() {
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 5; ++i) {
         twk_client* c = twk_client_create(nullptr, nullptr);
         twk_send(c, static_cast<unsigned long long>(i), "echo", "null");
         twk_client_destroy(c);
