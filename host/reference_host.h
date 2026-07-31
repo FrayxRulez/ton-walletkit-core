@@ -11,6 +11,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "twk/twk.h"
 #include "twk/twk_delegates.h"
@@ -20,7 +21,10 @@ namespace refhost {
 
 class ReferenceHost {
 public:
-    ReferenceHost();
+    // `storage_file` (optional) persists storage to disk so data survives a
+    // client — and a process — the way PasswordVault/Keychain would. Empty means
+    // in-memory only.
+    explicit ReferenceHost(std::string storage_file = {});
     ~ReferenceHost();
 
     ReferenceHost(const ReferenceHost&) = delete;

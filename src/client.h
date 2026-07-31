@@ -74,6 +74,17 @@ public:
     // Called from twk_http_respond / twk_http_failed on any thread.
     void completeHttp(int64_t token, HttpResult result);
 
+    // Storage. `on_done(found, value)` runs on the worker thread; for set/remove/
+    // clear the arguments are meaningless and only signal completion. Without a
+    // storage delegate these fail closed (get -> not found, writes -> done), so
+    // the kit still runs with nothing persisted.
+    enum class StorageOp { Get, Set, Remove, Clear };
+    void storage(StorageOp op, const std::string& key, const std::string& value,
+                 std::function<void(bool found, std::string value)> on_done);
+
+    // Called from twk_storage_respond on any thread.
+    void completeStorage(int64_t token, bool found, std::string value);
+
     // Runs `fn` only if `handle` is still a live client, holding the registry lock
     // for the duration so it cannot be destroyed mid-call. Host completions arrive
     // on host threads and can legitimately race destroy; this makes that safe
@@ -112,6 +123,7 @@ private:
     std::mutex tokens_mutex_;
     int64_t next_token_ = 1;
     std::unordered_map<int64_t, std::function<void(HttpResult)>> http_pending_;
+    std::unordered_map<int64_t, std::function<void(bool, std::string)>> storage_pending_;
 
     std::mutex out_mutex_;
     std::condition_variable out_cv_;

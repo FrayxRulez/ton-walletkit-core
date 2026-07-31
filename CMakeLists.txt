@@ -92,6 +92,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_balance_smoke PRIVATE twk)
     add_test(NAME balance_smoke COMMAND twk_balance_smoke)
 
+    # Storage delegate contract + persistence across clients.
+    add_executable(twk_storage_smoke test/storage_smoke.cpp)
+    target_link_libraries(twk_storage_smoke PRIVATE twk_refhost)
+    add_test(NAME storage_smoke COMMAND twk_storage_smoke)
+
     # Live network through the reference host (opt-in: TWK_LIVE_NETWORK_TESTS=1).
     add_executable(twk_refhost_smoke test/refhost_smoke.cpp)
     target_link_libraries(twk_refhost_smoke PRIVATE twk_refhost)

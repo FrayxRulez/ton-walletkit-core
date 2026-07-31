@@ -118,6 +118,62 @@ void Client::cancelHttp(int64_t token) {
     }
 }
 
+void Client::storage(StorageOp op, const std::string& key, const std::string& value,
+                     std::function<void(bool, std::string)> on_done) {
+    const bool have_delegate =
+        delegates_ != nullptr &&
+        ((op == StorageOp::Get && delegates_->storage_get != nullptr) ||
+         (op == StorageOp::Set && delegates_->storage_set != nullptr) ||
+         (op == StorageOp::Remove && delegates_->storage_remove != nullptr) ||
+         (op == StorageOp::Clear && delegates_->storage_clear != nullptr));
+
+    if (!have_delegate) {
+        // Fail closed: reads miss, writes report done. The kit still works, just
+        // without persistence.
+        on_done(false, std::string());
+        return;
+    }
+
+    int64_t token;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        token = next_token_++;
+        storage_pending_[token] = std::move(on_done);
+    }
+
+    auto* handle = reinterpret_cast<twk_client*>(this);
+    switch (op) {
+        case StorageOp::Get:
+            delegates_->storage_get(user_, handle, token, key.c_str());
+            break;
+        case StorageOp::Set:
+            delegates_->storage_set(user_, handle, token, key.c_str(), value.c_str());
+            break;
+        case StorageOp::Remove:
+            delegates_->storage_remove(user_, handle, token, key.c_str());
+            break;
+        case StorageOp::Clear:
+            delegates_->storage_clear(user_, handle, token);
+            break;
+    }
+}
+
+void Client::completeStorage(int64_t token, bool found, std::string value) {
+    std::function<void(bool, std::string)> handler;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        auto it = storage_pending_.find(token);
+        if (it == storage_pending_.end()) {
+            return;
+        }
+        handler = std::move(it->second);
+        storage_pending_.erase(it);
+    }
+    loop_.post([handler = std::move(handler), found, value = std::move(value)]() mutable {
+        handler(found, std::move(value));
+    });
+}
+
 void Client::completeHttp(int64_t token, HttpResult result) {
     std::function<void(HttpResult)> handler;
     {
@@ -176,6 +232,7 @@ void Client::onStop() {
     {
         std::lock_guard<std::mutex> guard(tokens_mutex_);
         http_pending_.clear();
+        storage_pending_.clear();
     }
     shims_.reset(); // frees timer JSValues while the context is still alive
     delete js_;
@@ -292,9 +349,18 @@ void twk_http_failed(twk_client* client, twk_token token, const char* error) {
     twk::Client::withLive(client, [&](twk::Client& c) { c.completeHttp(token, std::move(result)); });
 }
 
-// SSE (M4) and storage (M3) completions — accepted but not yet routed.
+void twk_storage_respond(twk_client* client, twk_token token, const char* value) {
+    if (client == nullptr) {
+        return;
+    }
+    const bool found = value != nullptr;
+    std::string copy = found ? value : "";
+    twk::Client::withLive(client,
+                          [&](twk::Client& c) { c.completeStorage(token, found, std::move(copy)); });
+}
+
+// SSE completions (M4) — accepted but not yet routed.
 void twk_sse_event(twk_client*, twk_token, const char*) {}
 void twk_sse_closed(twk_client*, twk_token, const char*) {}
-void twk_storage_respond(twk_client*, twk_token, const char*) {}
 
 } // extern "C"

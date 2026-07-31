@@ -18,6 +18,7 @@ import {
     type NetworkAdapters,
 } from '@ton/walletkit';
 import { hmac_sha512, pbkdf2_sha512, sha256, sha512, getSecureRandomBytes } from '@ton/crypto-primitives';
+import { HostStorageAdapter } from './HostStorageAdapter';
 
 /** The kit instance, created by init(). */
 let kit: TonWalletKit | undefined;
@@ -42,6 +43,8 @@ interface InitConfig {
     walletManifest?: unknown;
     deviceInfo?: unknown;
     dev?: boolean;
+    /** Key prefix for host storage (namespaces one account's data). */
+    storagePrefix?: string;
 }
 
 (globalThis as any).walletKit = {
@@ -67,9 +70,15 @@ interface InitConfig {
             };
         }
 
+        // Persist through the host when it provides a storage delegate; fall back
+        // to memory so the kit still runs without one (tests, diagnostics).
+        const storage = HostStorageAdapter.isAvailable()
+            ? new HostStorageAdapter({ prefix: config.storagePrefix ?? '' })
+            : new MemoryStorageAdapter({});
+
         kit = new TonWalletKit({
             networks,
-            storage: new MemoryStorageAdapter({}),
+            storage: storage as any,
             walletManifest: config.walletManifest as any,
             deviceInfo: config.deviceInfo as any,
             dev: config.dev,
@@ -150,6 +159,40 @@ interface InitConfig {
         } finally {
             if (timer) clearTimeout(timer);
         }
+    },
+
+    /** Round-trips the host storage delegate (used by the storage contract test). */
+    async storageProbe(): Promise<unknown> {
+        const store = new HostStorageAdapter({ prefix: 'probe:' });
+        const missing = await store.get('absent');
+        await store.set('k', 'v1');
+        const first = await store.get('k');
+        await store.set('k', 'v2');
+        const updated = await store.get('k');
+        await store.remove('k');
+        const removed = await store.get('k');
+        await store.set('a', '1');
+        await store.clear();
+        const afterClear = await store.get('a');
+        return {
+            available: HostStorageAdapter.isAvailable(),
+            missing,
+            first,
+            updated,
+            removed,
+            afterClear,
+        };
+    },
+
+    /** Reads a key written by an earlier client (persistence check). */
+    async storageGet(key: string): Promise<{ value: string | null }> {
+        return { value: await new HostStorageAdapter({}).get(key) };
+    },
+
+    /** Writes a key so a later client can read it back. */
+    async storageSet(key: string, value: string): Promise<{ ok: true }> {
+        await new HostStorageAdapter({}).set(key, value);
+        return { ok: true };
     },
 
     // Diagnostic helpers used by the transport tests (harmless in production).

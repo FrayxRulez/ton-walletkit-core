@@ -236,6 +236,67 @@ JSValue js_http(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueCons
     return JS_NewInt64(ctx, token);
 }
 
+// ---- __twk_storage: the primitive the JS StorageAdapter is built on --------
+// __twk_storage(op, key, value, cb) where op is 0=get 1=set 2=remove 3=clear.
+// cb(value | null) — for writes the argument only signals completion.
+JSValue js_storage(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr) {
+        return JS_ThrowInternalError(ctx, "__twk_storage: no client");
+    }
+    if (argc < 4 || !JS_IsFunction(ctx, argv[3])) {
+        return JS_ThrowTypeError(ctx, "__twk_storage(op, key, value, cb)");
+    }
+
+    int32_t op = 0;
+    JS_ToInt32(ctx, &op, argv[0]);
+
+    auto str = [&](JSValueConst v) -> std::string {
+        if (JS_IsUndefined(v) || JS_IsNull(v)) {
+            return {};
+        }
+        const char* s = JS_ToCString(ctx, v);
+        if (s == nullptr) {
+            return {};
+        }
+        std::string out(s);
+        JS_FreeCString(ctx, s);
+        return out;
+    };
+    std::string key = str(argv[1]);
+    std::string value = str(argv[2]);
+
+    struct CallbackRef {
+        JSContext* ctx;
+        JSValue fn;
+        CallbackRef(JSContext* c, JSValue f) : ctx(c), fn(f) {}
+        CallbackRef(const CallbackRef&) = delete;
+        CallbackRef& operator=(const CallbackRef&) = delete;
+        ~CallbackRef() { JS_FreeValue(ctx, fn); }
+    };
+    auto cb = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[3]));
+
+    static const Client::StorageOp kOps[] = {Client::StorageOp::Get, Client::StorageOp::Set,
+                                             Client::StorageOp::Remove, Client::StorageOp::Clear};
+    Client::StorageOp storage_op = kOps[(op >= 0 && op <= 3) ? op : 0];
+
+    client->storage(storage_op, key, value, [client, cb](bool found, std::string result) {
+        JSContext* c = client->js()->context();
+        JSValue arg = found ? JS_NewStringLen(c, result.data(), result.size()) : JS_NULL;
+        JSValue global = JS_GetGlobalObject(c);
+        JSValue ret = JS_Call(c, cb->fn, global, 1, &arg);
+        if (JS_IsException(ret)) {
+            std::fprintf(stderr, "[storage] uncaught: %s\n", client->js()->takeExceptionText().c_str());
+        }
+        JS_FreeValue(c, ret);
+        JS_FreeValue(c, global);
+        JS_FreeValue(c, arg);
+    });
+
+    return JS_UNDEFINED;
+}
+
 JSValue js_http_cancel(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
     auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
     Client* client = hc != nullptr ? hc->client : nullptr;
@@ -337,6 +398,9 @@ void Shims::install() {
     JS_SetPropertyStr(ctx, global, "__twk_http", JS_NewCFunction(ctx, js_http, "__twk_http", 5));
     JS_SetPropertyStr(ctx, global, "__twk_http_cancel",
                       JS_NewCFunction(ctx, js_http_cancel, "__twk_http_cancel", 1));
+
+    // Storage primitive (the JS StorageAdapter wraps this in promises).
+    JS_SetPropertyStr(ctx, global, "__twk_storage", JS_NewCFunction(ctx, js_storage, "__twk_storage", 4));
 
     // timers
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_set_timeout, "setTimeout", 2));

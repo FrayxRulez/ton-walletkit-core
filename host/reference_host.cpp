@@ -261,11 +261,48 @@ HttpOutcome do_request(const std::string& method, const std::string& url, const 
 
 } // namespace
 
-// Owns the worker threads and cancellation flags for in-flight requests.
+// Owns the worker threads, cancellation flags, and the key/value store.
 struct ReferenceHost::Impl {
     std::mutex mutex;
     std::vector<std::thread> threads;
     std::unordered_map<int64_t, bool> cancelled;
+
+    // Storage. Persisted to `storage_file` when set, so data survives a client
+    // (and the process), as PasswordVault/Keychain would.
+    std::string storage_file;
+    std::mutex storage_mutex;
+    std::map<std::string, std::string> store;
+
+    void loadStore() {
+        if (storage_file.empty()) {
+            return;
+        }
+        FILE* f = std::fopen(storage_file.c_str(), "rb");
+        if (f == nullptr) {
+            return;
+        }
+        std::string contents;
+        char buffer[4096];
+        size_t got;
+        while ((got = std::fread(buffer, 1, sizeof(buffer), f)) > 0) {
+            contents.append(buffer, got);
+        }
+        std::fclose(f);
+        store = from_json(contents);
+    }
+
+    void saveStore() {
+        if (storage_file.empty()) {
+            return;
+        }
+        std::string json = to_json(store);
+        FILE* f = std::fopen(storage_file.c_str(), "wb");
+        if (f == nullptr) {
+            return;
+        }
+        std::fwrite(json.data(), 1, json.size(), f);
+        std::fclose(f);
+    }
 
     ~Impl() {
         // Requests may still be running; join so no thread outlives the host.
@@ -351,11 +388,57 @@ void on_http_cancel(void* user, twk_client* /*client*/, twk_token token) {
     static_cast<ReferenceHost::Impl*>(user)->cancel(token);
 }
 
+// Storage. Completed synchronously — the delegate contract allows it, and it
+// keeps the reference host simple; a real host (PasswordVault) may go async.
+void on_storage_get(void* user, twk_client* client, twk_token token, const char* key) {
+    auto* impl = static_cast<ReferenceHost::Impl*>(user);
+    std::lock_guard<std::mutex> guard(impl->storage_mutex);
+    auto it = impl->store.find(key ? key : "");
+    twk_storage_respond(client, token, it == impl->store.end() ? nullptr : it->second.c_str());
+}
+
+void on_storage_set(void* user, twk_client* client, twk_token token, const char* key, const char* value) {
+    auto* impl = static_cast<ReferenceHost::Impl*>(user);
+    {
+        std::lock_guard<std::mutex> guard(impl->storage_mutex);
+        impl->store[key ? key : ""] = value ? value : "";
+        impl->saveStore();
+    }
+    twk_storage_respond(client, token, "");
+}
+
+void on_storage_remove(void* user, twk_client* client, twk_token token, const char* key) {
+    auto* impl = static_cast<ReferenceHost::Impl*>(user);
+    {
+        std::lock_guard<std::mutex> guard(impl->storage_mutex);
+        impl->store.erase(key ? key : "");
+        impl->saveStore();
+    }
+    twk_storage_respond(client, token, "");
+}
+
+void on_storage_clear(void* user, twk_client* client, twk_token token) {
+    auto* impl = static_cast<ReferenceHost::Impl*>(user);
+    {
+        std::lock_guard<std::mutex> guard(impl->storage_mutex);
+        impl->store.clear();
+        impl->saveStore();
+    }
+    twk_storage_respond(client, token, "");
+}
+
 } // namespace
 
-ReferenceHost::ReferenceHost() : impl_(std::make_unique<Impl>()) {
+ReferenceHost::ReferenceHost(std::string storage_file) : impl_(std::make_unique<Impl>()) {
+    impl_->storage_file = std::move(storage_file);
+    impl_->loadStore();
+
     delegates_.http_request = on_http_request;
     delegates_.http_cancel = on_http_cancel;
+    delegates_.storage_get = on_storage_get;
+    delegates_.storage_set = on_storage_set;
+    delegates_.storage_remove = on_storage_remove;
+    delegates_.storage_clear = on_storage_clear;
 }
 
 ReferenceHost::~ReferenceHost() = default;

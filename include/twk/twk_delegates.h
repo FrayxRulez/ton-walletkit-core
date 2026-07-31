@@ -53,11 +53,19 @@ struct twk_delegates {
     void (*sse_open)(void* user, twk_client* client, twk_token token, const char* url, const char* headers_json);
     void (*sse_close)(void* user, twk_client* client, twk_token token);
 
-    // ---- Secure storage — wired in M3 -----------------------------------
+    // ---- Secure storage -------------------------------------------------
+    // Holds wallet metadata and secrets (PasswordVault on Windows, Keychain on
+    // iOS, Keystore on Android; a file/memory store in the reference host).
+    //
+    // All four are asynchronous: walletkit awaits every storage operation, so a
+    // host doing real I/O must acknowledge completion or "wallet added" can
+    // resolve before it is actually persisted. Complete each with
+    // twk_storage_respond — for get, pass the value (or NULL when absent); for
+    // set/remove/clear the value is ignored and only signals "done".
     void (*storage_get)(void* user, twk_client* client, twk_token token, const char* key);
-    void (*storage_set)(void* user, twk_client* client, const char* key, const char* value);
-    void (*storage_remove)(void* user, twk_client* client, const char* key);
-    void (*storage_clear)(void* user, twk_client* client);
+    void (*storage_set)(void* user, twk_client* client, twk_token token, const char* key, const char* value);
+    void (*storage_remove)(void* user, twk_client* client, twk_token token, const char* key);
+    void (*storage_clear)(void* user, twk_client* client, twk_token token);
 
     // ---- Diagnostics ----------------------------------------------------
     // level: 0=debug 1=info 2=warn 3=error. May be NULL (the core logs to stderr).
