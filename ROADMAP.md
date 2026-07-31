@@ -34,6 +34,27 @@ Legend: 🎯 exit criterion · 🧪 tests introduced · ⚠️ primary risk bein
 - 🎯 `twk-cli` runs `createTonMnemonic` → 24 words returned through `send`/`receive`.
 - 🧪 JS-level test (Node) that the bundle boots; C++ test that a pure walletkit call round-trips.
 
+## Perf pass (done, post-M1) — measured, not guessed
+`tools/twk-bench` splits startup from per-call cost; `walletKit.benchCrypto` times each
+primitive. Baseline → now (MSVC x64):
+
+| | before | after |
+|---|---|---|
+| `createMnemonic` | 16.7 s mean | **0.4 s** |
+| startup (bundle load) | 1380 ms | **1100 ms** |
+| `hmac_sha512` / `sha512` / `sha256` | 48.9 / 14.9 / 5.0 ms | **0.02 / 0.04 / 0.04 ms** |
+| echo (warm round trip) | 0.1 ms | 0.1 ms |
+
+- **Native SHA/HMAC/PBKDF2** (`src/util/crypto`, BCrypt, cached providers) replacing jssha,
+  which is punishing in the interpreter. `js/src/polyfills/crypto-primitives.ts` shims
+  `@ton/crypto-primitives`, falling back to pure JS when the host lacks `__twk_crypto`.
+  `twk_crypto_kat` proves bit-identical output against RFC/OpenSSL vectors.
+- **Bytecode precompile** (`tools/twk-bundlec`) removes the per-client parse.
+
+**Still open:** the remaining ~1.1 s startup is *executing* the bundle (walletkit's object
+graph), not parsing — only reducible by importing less of walletkit. Revisit after M3, and
+note `createMnemonic` is inherently variable (geometric, p=1/256 per attempt).
+
 ## M2 — Networking via the HTTP delegate + reference host
 ⚠️ Prove the **delegate seam** and the async `fetch`→`http_request`→`twk_http_respond`→Promise flow end to end.
 - [ ] `shims/fetch`: thin JSON GET/POST + `AbortController` → `http_request` delegate.
