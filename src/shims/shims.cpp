@@ -12,68 +12,11 @@
 #include "engine/js_runtime.h"
 #include "host_context.h"
 #include "util/base64.h"
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-
-#include <bcrypt.h>
-#else
-#include <random>
-#endif
+#include "util/crypto.h"
 
 namespace twk {
 
 namespace {
-
-// ---- platform crypto ------------------------------------------------------
-
-bool platform_random(uint8_t* buf, size_t len) {
-    if (len == 0) {
-        return true;
-    }
-#if defined(_WIN32)
-    return BCryptGenRandom(nullptr, buf, static_cast<ULONG>(len), BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0;
-#else
-    std::random_device rd;
-    for (size_t i = 0; i < len; ++i) {
-        buf[i] = static_cast<uint8_t>(rd() & 0xff);
-    }
-    return true;
-#endif
-}
-
-// PBKDF2-HMAC-SHA512. Returns false if unsupported on this platform.
-bool platform_pbkdf2_sha512(const std::vector<uint8_t>& password, const std::vector<uint8_t>& salt,
-                            uint32_t iterations, std::vector<uint8_t>& out) {
-    if (out.empty()) {
-        return true;
-    }
-#if defined(_WIN32)
-    // Open the HMAC-SHA512 provider once and reuse it: the TON mnemonic retry loop
-    // calls this hundreds of times, and re-opening per call dominated the cost.
-    // BCrypt algorithm handles are safe for concurrent BCryptDeriveKeyPBKDF2 use.
-    static BCRYPT_ALG_HANDLE alg = [] {
-        BCRYPT_ALG_HANDLE handle = nullptr;
-        BCryptOpenAlgorithmProvider(&handle, BCRYPT_SHA512_ALGORITHM, nullptr, BCRYPT_ALG_HANDLE_HMAC_FLAG);
-        return handle;
-    }();
-    if (alg == nullptr) {
-        return false;
-    }
-    NTSTATUS status = BCryptDeriveKeyPBKDF2(
-        alg, const_cast<PUCHAR>(password.data()), static_cast<ULONG>(password.size()),
-        const_cast<PUCHAR>(salt.data()), static_cast<ULONG>(salt.size()), iterations, out.data(),
-        static_cast<ULONG>(out.size()), 0);
-    return status == 0;
-#else
-    (void)password;
-    (void)salt;
-    (void)iterations;
-    return false;
-#endif
-}
 
 // ---- native shim functions ------------------------------------------------
 
@@ -109,10 +52,70 @@ JSValue js_get_random_values(JSContext* ctx, JSValueConst /*this_val*/, int argc
     if (ptr == nullptr) {
         return JS_ThrowTypeError(ctx, "getRandomValues expects a Uint8Array");
     }
-    if (!platform_random(ptr, size)) {
+    if (!crypto::random_bytes(ptr, size)) {
         return JS_ThrowInternalError(ctx, "getRandomValues: RNG failure");
     }
     return JS_DupValue(ctx, argv[0]);
+}
+
+// ---- __twk_crypto: native hashing over typed arrays ------------------------
+// Uint8Array in / Uint8Array out (no base64) — the JS crypto-primitives polyfill
+// calls these; it falls back to pure JS when __twk_crypto is absent.
+
+// Hash-style: fn(Uint8Array) -> Uint8Array
+template <bool (*Fn)(const uint8_t*, size_t, uint8_t*), size_t OutLen>
+JSValue js_hash(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    size_t len = 0;
+    uint8_t* data = argc > 0 ? JS_GetUint8Array(ctx, &len, argv[0]) : nullptr;
+    if (data == nullptr && len != 0) {
+        return JS_ThrowTypeError(ctx, "expected a Uint8Array");
+    }
+    uint8_t out[OutLen];
+    if (!Fn(data, len, out)) {
+        return JS_ThrowInternalError(ctx, "hash failure");
+    }
+    return JS_NewUint8ArrayCopy(ctx, out, OutLen);
+}
+
+// hmacSha512(key: Uint8Array, data: Uint8Array) -> Uint8Array(64)
+JSValue js_hmac_sha512(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    if (argc < 2) {
+        return JS_ThrowTypeError(ctx, "hmacSha512 expects (key, data)");
+    }
+    size_t key_len = 0, data_len = 0;
+    uint8_t* key = JS_GetUint8Array(ctx, &key_len, argv[0]);
+    uint8_t* data = JS_GetUint8Array(ctx, &data_len, argv[1]);
+    if ((key == nullptr && key_len != 0) || (data == nullptr && data_len != 0)) {
+        return JS_ThrowTypeError(ctx, "hmacSha512 expects Uint8Arrays");
+    }
+    uint8_t out[64];
+    if (!crypto::hmac_sha512(key, key_len, data, data_len, out)) {
+        return JS_ThrowInternalError(ctx, "hmacSha512 failure");
+    }
+    return JS_NewUint8ArrayCopy(ctx, out, 64);
+}
+
+// pbkdf2Sha512(password: Uint8Array, salt: Uint8Array, iterations, keyLen) -> Uint8Array
+JSValue js_pbkdf2(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    if (argc < 4) {
+        return JS_ThrowTypeError(ctx, "pbkdf2Sha512 expects (password, salt, iterations, keyLen)");
+    }
+    size_t pw_len = 0, salt_len = 0;
+    uint8_t* pw = JS_GetUint8Array(ctx, &pw_len, argv[0]);
+    uint8_t* salt = JS_GetUint8Array(ctx, &salt_len, argv[1]);
+    int64_t iterations = 0, key_len = 0;
+    JS_ToInt64(ctx, &iterations, argv[2]);
+    JS_ToInt64(ctx, &key_len, argv[3]);
+    if (iterations <= 0 || key_len <= 0 || key_len > (1 << 20)) {
+        return JS_ThrowRangeError(ctx, "pbkdf2Sha512: bad iterations/keyLen");
+    }
+
+    std::vector<uint8_t> out(static_cast<size_t>(key_len));
+    if (!crypto::pbkdf2_sha512(pw, pw_len, salt, salt_len, static_cast<uint32_t>(iterations), out.data(),
+                               out.size())) {
+        return JS_ThrowInternalError(ctx, "pbkdf2Sha512 failure");
+    }
+    return JS_NewUint8ArrayCopy(ctx, out.data(), out.size());
 }
 
 // Pbkdf2.derive(passwordB64, saltB64, iterations, keyLen, "sha-512") -> base64 string.
@@ -151,7 +154,8 @@ JSValue js_pbkdf2_derive(JSContext* ctx, JSValueConst /*this_val*/, int argc, JS
     }
 
     std::vector<uint8_t> out(static_cast<size_t>(key_len));
-    if (!platform_pbkdf2_sha512(pw_bytes, salt_bytes, static_cast<uint32_t>(iterations), out)) {
+    if (!crypto::pbkdf2_sha512(pw_bytes.data(), pw_bytes.size(), salt_bytes.data(), salt_bytes.size(),
+                               static_cast<uint32_t>(iterations), out.data(), out.size())) {
         return JS_ThrowInternalError(ctx, "Pbkdf2.derive: PBKDF2 failure");
     }
 
@@ -226,10 +230,23 @@ void Shims::install() {
     JS_SetPropertyStr(ctx, crypto, "getRandomValues", JS_NewCFunction(ctx, js_get_random_values, "getRandomValues", 1));
     JS_FreeValue(ctx, crypto);
 
-    // Pbkdf2.derive
+    // Pbkdf2.derive — the kit-ios contract (base64 in/out), used by the
+    // react-native-fast-pbkdf2 polyfill.
     JSValue pbkdf2 = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, pbkdf2, "derive", JS_NewCFunction(ctx, js_pbkdf2_derive, "derive", 5));
     JS_SetPropertyStr(ctx, global, "Pbkdf2", pbkdf2);
+
+    // __twk_crypto — native hashing over typed arrays (our own, faster contract).
+    // Only published when the platform backend works, so the JS polyfill can
+    // detect its absence and fall back to pure JS.
+    if (crypto::available()) {
+        JSValue nc = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, nc, "sha256", JS_NewCFunction(ctx, (js_hash<crypto::sha256, 32>), "sha256", 1));
+        JS_SetPropertyStr(ctx, nc, "sha512", JS_NewCFunction(ctx, (js_hash<crypto::sha512, 64>), "sha512", 1));
+        JS_SetPropertyStr(ctx, nc, "hmacSha512", JS_NewCFunction(ctx, js_hmac_sha512, "hmacSha512", 2));
+        JS_SetPropertyStr(ctx, nc, "pbkdf2Sha512", JS_NewCFunction(ctx, js_pbkdf2, "pbkdf2Sha512", 4));
+        JS_SetPropertyStr(ctx, global, "__twk_crypto", nc);
+    }
 
     // timers
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_set_timeout, "setTimeout", 2));

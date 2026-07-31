@@ -78,6 +78,12 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_mnemonic_smoke PRIVATE twk)
     add_test(NAME mnemonic_smoke COMMAND twk_mnemonic_smoke)
 
+    # Known-answer tests for the native crypto (RFC vectors + OpenSSL-generated).
+    add_executable(twk_crypto_kat test/crypto_kat.cpp)
+    target_link_libraries(twk_crypto_kat PRIVATE twk)
+    target_include_directories(twk_crypto_kat PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME crypto_kat COMMAND twk_crypto_kat)
+
     # Host shims (console / getRandomValues / Pbkdf2 / timers).
     add_executable(twk_shims_smoke test/shims_smoke.cpp)
     target_link_libraries(twk_shims_smoke PRIVATE twk qjs)

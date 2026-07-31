@@ -19,13 +19,10 @@ const alias = {
     'react-native-fast-pbkdf2': path.resolve(__dirname, 'src/polyfills/pbkdf2.js'),
 };
 
-// Match kit-ios: use the crypto-primitives "native" build (routes pbkdf2 through
-// the aliased react-native-fast-pbkdf2 shim above).
-try {
-    alias['@ton/crypto-primitives'] = require.resolve('@ton/crypto-primitives/dist/native.js');
-} catch {
-    // Fall back to the package default if the native subpath is unavailable.
-}
+// Replace @ton/crypto-primitives wholesale: upstream hashes with jssha, which is
+// ~49 ms/call for hmac_sha512 in the QuickJS interpreter. Our shim routes to the
+// host's native crypto and falls back to the same pure-JS code when absent.
+alias['@ton/crypto-primitives'] = path.resolve(__dirname, 'src/polyfills/crypto-primitives.ts');
 
 await esbuild.build({
     entryPoints: [path.resolve(__dirname, 'src/index.ts')],

@@ -13,6 +13,7 @@ add_library(twk STATIC
     engine/js_runtime.cpp
     engine/event_loop.cpp
     util/base64.cpp
+    util/crypto.cpp
     shims/shims.cpp
     bridge/transport.cpp
     client.cpp
