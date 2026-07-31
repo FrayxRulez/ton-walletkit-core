@@ -21,6 +21,19 @@ namespace {
 
 // ---- native shim functions ------------------------------------------------
 
+// Owns a reference to a JS callback and releases it however the handler ends —
+// invoked, cancelled, or dropped at teardown. Non-copyable: a copy would
+// double-free, and constructing from a temporary would free it immediately.
+// Client::onStop clears pending handlers while the context is still alive.
+struct CallbackRef {
+    JSContext* ctx;
+    JSValue fn;
+    CallbackRef(JSContext* c, JSValue f) : ctx(c), fn(f) {}
+    CallbackRef(const CallbackRef&) = delete;
+    CallbackRef& operator=(const CallbackRef&) = delete;
+    ~CallbackRef() { JS_FreeValue(ctx, fn); }
+};
+
 Shims* shims_of(JSContext* ctx) {
     auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
     return hc != nullptr ? hc->shims : nullptr;
@@ -197,19 +210,6 @@ JSValue js_http(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueCons
     std::string headers = str(argv[2]);
     std::string body = str(argv[3]);
 
-    // Owns a reference to the JS callback and releases it however the handler
-    // ends — invoked, cancelled, or dropped at teardown. Client::onStop clears
-    // pending handlers while the context is still alive, so this is safe.
-    struct CallbackRef {
-        JSContext* ctx;
-        JSValue fn;
-        CallbackRef(JSContext* c, JSValue f) : ctx(c), fn(f) {}
-        // Non-copyable: a copy would double-free the reference (and constructing
-        // from a temporary would free it immediately).
-        CallbackRef(const CallbackRef&) = delete;
-        CallbackRef& operator=(const CallbackRef&) = delete;
-        ~CallbackRef() { JS_FreeValue(ctx, fn); }
-    };
     auto cb = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[4]));
 
     int64_t token = client->startHttp(method, url, headers, body, [client, cb](HttpResult result) {
@@ -234,6 +234,77 @@ JSValue js_http(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueCons
     });
 
     return JS_NewInt64(ctx, token);
+}
+
+
+// ---- __twk_sse: the primitive the JS EventSource is built on ---------------
+// __twk_sse_open(url, headersJson, onEvent, onClosed) -> token
+//   onEvent(json)  — one dispatched SSE event, {"data","event","id"}
+//   onClosed(error | null) — terminal
+JSValue js_sse_open(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr) {
+        return JS_ThrowInternalError(ctx, "__twk_sse_open: no client");
+    }
+    if (argc < 4 || !JS_IsFunction(ctx, argv[2]) || !JS_IsFunction(ctx, argv[3])) {
+        return JS_ThrowTypeError(ctx, "__twk_sse_open(url, headersJson, onEvent, onClosed)");
+    }
+
+    auto str = [&](JSValueConst v) -> std::string {
+        if (JS_IsUndefined(v) || JS_IsNull(v)) {
+            return {};
+        }
+        const char* s = JS_ToCString(ctx, v);
+        if (s == nullptr) {
+            return {};
+        }
+        std::string out(s);
+        JS_FreeCString(ctx, s);
+        return out;
+    };
+    std::string url = str(argv[0]);
+    std::string headers = str(argv[1]);
+
+    auto on_event = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[2]));
+    auto on_closed = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[3]));
+
+    auto invoke = [client](const std::shared_ptr<CallbackRef>& cb, JSValue arg) {
+        JSContext* c = client->js()->context();
+        JSValue global = JS_GetGlobalObject(c);
+        JSValue ret = JS_Call(c, cb->fn, global, 1, &arg);
+        if (JS_IsException(ret)) {
+            std::fprintf(stderr, "[sse] uncaught: %s\n", client->js()->takeExceptionText().c_str());
+        }
+        JS_FreeValue(c, ret);
+        JS_FreeValue(c, global);
+        JS_FreeValue(c, arg);
+    };
+
+    int64_t token = client->openSse(
+        url, headers,
+        [client, on_event, invoke](std::string data) {
+            JSContext* c = client->js()->context();
+            invoke(on_event, JS_NewStringLen(c, data.data(), data.size()));
+        },
+        [client, on_closed, invoke](std::string error, bool had_error) {
+            JSContext* c = client->js()->context();
+            invoke(on_closed, had_error ? JS_NewStringLen(c, error.data(), error.size()) : JS_NULL);
+        });
+
+    return JS_NewInt64(ctx, token);
+}
+
+JSValue js_sse_close(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
+    if (client == nullptr || argc < 1) {
+        return JS_UNDEFINED;
+    }
+    int64_t token = 0;
+    JS_ToInt64(ctx, &token, argv[0]);
+    client->closeSse(token);
+    return JS_UNDEFINED;
 }
 
 // ---- __twk_storage: the primitive the JS StorageAdapter is built on --------
@@ -267,14 +338,6 @@ JSValue js_storage(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueC
     std::string key = str(argv[1]);
     std::string value = str(argv[2]);
 
-    struct CallbackRef {
-        JSContext* ctx;
-        JSValue fn;
-        CallbackRef(JSContext* c, JSValue f) : ctx(c), fn(f) {}
-        CallbackRef(const CallbackRef&) = delete;
-        CallbackRef& operator=(const CallbackRef&) = delete;
-        ~CallbackRef() { JS_FreeValue(ctx, fn); }
-    };
     auto cb = std::make_shared<CallbackRef>(ctx, JS_DupValue(ctx, argv[3]));
 
     static const Client::StorageOp kOps[] = {Client::StorageOp::Get, Client::StorageOp::Set,
@@ -401,6 +464,11 @@ void Shims::install() {
 
     // Storage primitive (the JS StorageAdapter wraps this in promises).
     JS_SetPropertyStr(ctx, global, "__twk_storage", JS_NewCFunction(ctx, js_storage, "__twk_storage", 4));
+
+    // SSE primitive (the JS EventSource is built on this).
+    JS_SetPropertyStr(ctx, global, "__twk_sse_open", JS_NewCFunction(ctx, js_sse_open, "__twk_sse_open", 4));
+    JS_SetPropertyStr(ctx, global, "__twk_sse_close",
+                      JS_NewCFunction(ctx, js_sse_close, "__twk_sse_close", 1));
 
     // timers
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_set_timeout, "setTimeout", 2));

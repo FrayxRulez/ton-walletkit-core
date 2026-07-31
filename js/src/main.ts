@@ -107,6 +107,9 @@ async function createAdapter(
     };
 }
 
+/** The EventSource opened by sseProbe (diagnostics only). */
+let sseProbeSource: any;
+
 /**
  * Push an unsolicited update to the host. It surfaces from twk_receive with
  * request_id = 0, because it answers no request.
@@ -375,6 +378,27 @@ interface InitConfig {
     },
     async rejectSignMessageRequest(event: any, reason?: string): Promise<unknown> {
         return requireKit().rejectSignMessageRequest(event, reason);
+    },
+
+    /**
+     * Opens an EventSource and forwards what it receives as unsolicited updates
+     * (type "sse"), so the SSE path can be exercised without a dapp. Resolves once
+     * the stream is open; the caller closes it with sseProbeClose.
+     */
+    async sseProbe(url: string): Promise<{ opened: true }> {
+        const source: any = new (globalThis as any).EventSource(url);
+        sseProbeSource = source;
+        source.onmessage = (event: any) =>
+            emitEvent('sse', { kind: 'message', data: event.data, lastEventId: event.lastEventId });
+        source.addEventListener('custom', (event: any) => emitEvent('sse', { kind: 'custom', data: event.data }));
+        source.onerror = (event: any) => emitEvent('sse', { kind: 'error', message: event.message ?? null });
+        source.onopen = () => emitEvent('sse', { kind: 'open' });
+        return { opened: true };
+    },
+
+    async sseProbeClose(): Promise<{ readyState: number }> {
+        sseProbeSource?.close();
+        return { readyState: sseProbeSource?.readyState ?? 2 };
     },
 
     /** Test hook: pushes an event without a dapp, to exercise the update path. */

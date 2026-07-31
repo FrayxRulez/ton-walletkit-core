@@ -49,7 +49,12 @@ struct twk_delegates {
     // it; a late completion for a cancelled token is discarded.
     void (*http_cancel)(void* user, twk_client* client, twk_token token);
 
-    // ---- SSE (TON Connect relay) — wired in M4 --------------------------
+    // ---- SSE (the TON Connect relay) ------------------------------------
+    // Multi-shot, unlike http_request: one open yields many twk_sse_event calls
+    // and exactly one twk_sse_closed. The host owns the text/event-stream framing
+    // and delivers one dispatched event per call as a JSON object:
+    //   {"data":"…","event":"message","id":"…"}
+    // (`id` matters — TON Connect resumes from lastEventId after a reconnect.)
     void (*sse_open)(void* user, twk_client* client, twk_token token, const char* url, const char* headers_json);
     void (*sse_close)(void* user, twk_client* client, twk_token token);
 

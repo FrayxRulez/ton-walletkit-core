@@ -32,6 +32,8 @@ async function bootstrap(): Promise<void> {
         // cancel, so ours must win.
         loading = 'fetch';
         await import('./polyfills/fetch');
+        loading = 'eventSource';
+        await import('./polyfills/eventSource');
 
         loading = 'main';
         await import('./main');

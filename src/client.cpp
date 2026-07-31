@@ -118,6 +118,66 @@ void Client::cancelHttp(int64_t token) {
     }
 }
 
+int64_t Client::openSse(const std::string& url, const std::string& headers_json,
+                        std::function<void(std::string)> on_event,
+                        std::function<void(std::string, bool)> on_closed) {
+    if (delegates_ == nullptr || delegates_->sse_open == nullptr) {
+        on_closed("no sse_open delegate installed", true);
+        return 0;
+    }
+
+    int64_t token;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        token = next_token_++;
+        sse_streams_[token] = SseHandlers{std::move(on_event), std::move(on_closed)};
+    }
+
+    delegates_->sse_open(user_, reinterpret_cast<twk_client*>(this), token, url.c_str(),
+                         headers_json.empty() ? nullptr : headers_json.c_str());
+    return token;
+}
+
+void Client::closeSse(int64_t token) {
+    bool was_open;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        was_open = sse_streams_.erase(token) > 0;
+    }
+    if (was_open && delegates_ != nullptr && delegates_->sse_close != nullptr) {
+        delegates_->sse_close(user_, reinterpret_cast<twk_client*>(this), token);
+    }
+}
+
+void Client::completeSseEvent(int64_t token, std::string data) {
+    std::function<void(std::string)> handler;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        auto it = sse_streams_.find(token);
+        if (it == sse_streams_.end()) {
+            return; // closed, or the client is tearing down
+        }
+        handler = it->second.on_event; // copy: the stream stays open for more events
+    }
+    loop_.post([handler = std::move(handler), data = std::move(data)]() mutable { handler(std::move(data)); });
+}
+
+void Client::completeSseClosed(int64_t token, std::string error, bool had_error) {
+    std::function<void(std::string, bool)> handler;
+    {
+        std::lock_guard<std::mutex> guard(tokens_mutex_);
+        auto it = sse_streams_.find(token);
+        if (it == sse_streams_.end()) {
+            return;
+        }
+        handler = std::move(it->second.on_closed);
+        sse_streams_.erase(it); // terminal
+    }
+    loop_.post([handler = std::move(handler), error = std::move(error), had_error]() mutable {
+        handler(std::move(error), had_error);
+    });
+}
+
 void Client::storage(StorageOp op, const std::string& key, const std::string& value,
                      std::function<void(bool, std::string)> on_done) {
     const bool have_delegate =
@@ -233,6 +293,7 @@ void Client::onStop() {
         std::lock_guard<std::mutex> guard(tokens_mutex_);
         http_pending_.clear();
         storage_pending_.clear();
+        sse_streams_.clear();
     }
     shims_.reset(); // frees timer JSValues while the context is still alive
     delete js_;
@@ -359,8 +420,22 @@ void twk_storage_respond(twk_client* client, twk_token token, const char* value)
                           [&](twk::Client& c) { c.completeStorage(token, found, std::move(copy)); });
 }
 
-// SSE completions (M4) — accepted but not yet routed.
-void twk_sse_event(twk_client*, twk_token, const char*) {}
-void twk_sse_closed(twk_client*, twk_token, const char*) {}
+void twk_sse_event(twk_client* client, twk_token token, const char* data) {
+    if (client == nullptr) {
+        return;
+    }
+    std::string copy = data != nullptr ? data : "";
+    twk::Client::withLive(client, [&](twk::Client& c) { c.completeSseEvent(token, std::move(copy)); });
+}
+
+void twk_sse_closed(twk_client* client, twk_token token, const char* error) {
+    if (client == nullptr) {
+        return;
+    }
+    const bool had_error = error != nullptr;
+    std::string copy = had_error ? error : "";
+    twk::Client::withLive(client,
+                          [&](twk::Client& c) { c.completeSseClosed(token, std::move(copy), had_error); });
+}
 
 } // extern "C"

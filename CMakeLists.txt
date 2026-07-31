@@ -92,6 +92,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_balance_smoke PRIVATE twk)
     add_test(NAME balance_smoke COMMAND twk_balance_smoke)
 
+    # SSE seam (multi-shot: EventSource -> sse_open delegate -> events + close).
+    add_executable(twk_sse_smoke test/sse_smoke.cpp)
+    target_link_libraries(twk_sse_smoke PRIVATE twk)
+    add_test(NAME sse_smoke COMMAND twk_sse_smoke)
+
     # Unsolicited updates (request_id=0) and their interleaving with responses.
     add_executable(twk_event_smoke test/event_smoke.cpp)
     target_link_libraries(twk_event_smoke PRIVATE twk)

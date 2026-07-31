@@ -48,7 +48,20 @@ static bool test_timers() {
     auto cancelled = loop.addTimer(30, false, record(999));
     loop.clearTimer(cancelled);
 
-    std::this_thread::sleep_for(160ms);
+    // Wait for the three timers to fire rather than sleeping a fixed span: under
+    // load a fixed sleep makes this assert on timing, not on ordering, and flakes.
+    auto deadline = std::chrono::steady_clock::now() + 5s;
+    for (;;) {
+        {
+            std::lock_guard<std::mutex> g(m);
+            if (order.size() >= 3 || std::chrono::steady_clock::now() > deadline) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(2ms);
+    }
+    // Give the cancelled timer's slot a moment to prove it stays silent.
+    std::this_thread::sleep_for(30ms);
     loop.stop();
 
     std::lock_guard<std::mutex> g(m);
@@ -66,7 +79,11 @@ static bool test_repeat_timer() {
 
     std::atomic<int> ticks{0};
     auto id = loop.addTimer(15, /*repeat=*/true, [&] { ticks.fetch_add(1); });
-    std::this_thread::sleep_for(100ms);
+    // Wait for enough ticks instead of assuming how many fit in a fixed sleep.
+    auto deadline = std::chrono::steady_clock::now() + 5s;
+    while (ticks.load() < 3 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(2ms);
+    }
     loop.clearTimer(id);
     int after_clear = ticks.load();
     std::this_thread::sleep_for(60ms);

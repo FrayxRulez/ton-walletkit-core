@@ -74,6 +74,20 @@ public:
     // Called from twk_http_respond / twk_http_failed on any thread.
     void completeHttp(int64_t token, HttpResult result);
 
+    // SSE (the TON Connect relay). Unlike HTTP this is multi-shot: one open yields
+    // many events and then a single close, so the handlers live until closed.
+    // Both callbacks run on the worker thread. Returns 0 if no sse_open delegate
+    // is installed (on_closed is then invoked immediately).
+    int64_t openSse(const std::string& url, const std::string& headers_json,
+                    std::function<void(std::string)> on_event,
+                    std::function<void(std::string error, bool had_error)> on_closed);
+
+    void closeSse(int64_t token);
+
+    // Called from twk_sse_event / twk_sse_closed on any thread.
+    void completeSseEvent(int64_t token, std::string data);
+    void completeSseClosed(int64_t token, std::string error, bool had_error);
+
     // Storage. `on_done(found, value)` runs on the worker thread; for set/remove/
     // clear the arguments are meaningless and only signal completion. Without a
     // storage delegate these fail closed (get -> not found, writes -> done), so
@@ -124,6 +138,13 @@ private:
     int64_t next_token_ = 1;
     std::unordered_map<int64_t, std::function<void(HttpResult)>> http_pending_;
     std::unordered_map<int64_t, std::function<void(bool, std::string)>> storage_pending_;
+
+    // Multi-shot: kept until the stream closes.
+    struct SseHandlers {
+        std::function<void(std::string)> on_event;
+        std::function<void(std::string, bool)> on_closed;
+    };
+    std::unordered_map<int64_t, SseHandlers> sse_streams_;
 
     std::mutex out_mutex_;
     std::condition_variable out_cv_;
