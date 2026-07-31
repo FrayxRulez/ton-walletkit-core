@@ -76,6 +76,32 @@ await client.SendAsync("storageSet", "[\"k\",\"v\"]");
 var got = await client.SendAsync("storageGet", "[\"k\"]");
 Check("storage delegate round trip", got != null && got.Contains("\"value\":\"v\""), got);
 
+// 8. The typed facade: the object model kit-ios exposes, over the id-based ABI.
+using (var kit = new TonWalletKit(new FakeHost()))
+{
+    await kit.InitializeAsync("-3", "https://testnet.toncenter.com");
+
+    var words = await kit.CreateMnemonicAsync();
+    Check("facade: createMnemonic -> 24 words", words.Count == 24, string.Join(" ", words).Substring(0, 30) + "…");
+
+    var wallet = await kit.RestoreWalletAsync(words);
+    Check("facade: mnemonic -> wallet", wallet.Address != null && wallet.WalletId != null, wallet.Address);
+
+    var walletBalance = await wallet.GetBalanceAsync();
+    Check("facade: wallet.GetBalance", walletBalance == "110576459116021734", walletBalance);
+
+    var tx = await wallet.CreateTransferAsync(wallet.Address, "1000000", "from the facade");
+    Check("facade: CreateTransfer", tx != null && tx.Contains("messages"), tx);
+
+    var boc = await wallet.GetSignedTransactionAsync(tx, fakeSignature: true);
+    Check("facade: sign with fake signature", !string.IsNullOrEmpty(boc), boc);
+
+    // Restoring the same mnemonic must yield the same address — that is what makes
+    // a restored wallet the same wallet.
+    var again = await kit.RestoreWalletAsync(words);
+    Check("facade: restore is deterministic", again.Address == wallet.Address, again.Address);
+}
+
 Console.WriteLine(failures == 0 ? "PASS" : "FAILED");
 return failures == 0 ? 0 : 1;
 
