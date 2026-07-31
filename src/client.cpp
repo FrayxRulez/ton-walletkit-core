@@ -279,7 +279,9 @@ void Client::afterWork() {
     if (!js_) {
         return;
     }
-    // Drain the QuickJS job queue (promise reactions, etc.).
+    // Drain the QuickJS job queue (promise reactions, etc.). Bounded for the same
+    // reason as dispatch: a promise reaction can loop forever too.
+    JsDeadline deadline(*js_);
     JSContext* ctx = nullptr;
     while (JS_ExecutePendingJob(js_->runtime(), &ctx) > 0) {
     }

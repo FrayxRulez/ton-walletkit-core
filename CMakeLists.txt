@@ -115,6 +115,13 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_tonconnect_smoke PRIVATE twk)
     add_test(NAME tonconnect_smoke COMMAND twk_tonconnect_smoke)
 
+    # Robustness: malformed input, misbehaving hosts, oversized payloads.
+    add_executable(twk_robustness_smoke test/robustness_smoke.cpp)
+    target_link_libraries(twk_robustness_smoke PRIVATE twk)
+    add_test(NAME robustness_smoke COMMAND twk_robustness_smoke)
+    # Short runaway-script budget so the watchdog case does not take a minute.
+    set_tests_properties(robustness_smoke PROPERTIES ENVIRONMENT "TWK_JS_BUDGET_MS=3000")
+
     # SSE framing parser (multi-line data, comments, CRLF, chunk boundaries).
     add_executable(twk_sse_parser_test test/sse_parser_test.cpp)
     target_link_libraries(twk_sse_parser_test PRIVATE twk_refhost)

@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <string>
 
 #include "quickjs.h"
@@ -50,9 +53,44 @@ public:
     // Take the pending exception and render it (message + stack) to a string.
     std::string takeExceptionText();
 
+    // Bound how long one synchronous run of JS may take. Without this a runaway
+    // script (`while (true) {}`) wedges the worker thread forever, and the client
+    // can never be destroyed. Only synchronous execution is affected: waiting on a
+    // promise runs no JS, so ordinary async work is untouched.
+    //
+    // startDeadline is called before entering JS and clearDeadline after; the
+    // interrupt handler aborts execution once the deadline passes, surfacing as a
+    // normal JS exception ("interrupted").
+    void startDeadline(std::chrono::milliseconds budget);
+    void clearDeadline();
+
+    // Default budget for one synchronous run. 60s unless TWK_JS_BUDGET_MS says
+    // otherwise (tests use a short one; a host could tighten it).
+    std::chrono::milliseconds defaultBudget() const { return budget_; }
+
 private:
+    static int interruptHandler(JSRuntime* rt, void* opaque);
+
     JSRuntime* rt_ = nullptr;
     JSContext* ctx_ = nullptr;
+
+    // steady_clock ticks; 0 means "no deadline".
+    std::atomic<int64_t> deadline_{0};
+    std::chrono::milliseconds budget_{60000};
+};
+
+// RAII guard around a synchronous entry into JS.
+class JsDeadline {
+public:
+    explicit JsDeadline(JsRuntime& js) : js_(js) { js_.startDeadline(js.defaultBudget()); }
+    JsDeadline(JsRuntime& js, std::chrono::milliseconds budget) : js_(js) { js_.startDeadline(budget); }
+    ~JsDeadline() { js_.clearDeadline(); }
+
+    JsDeadline(const JsDeadline&) = delete;
+    JsDeadline& operator=(const JsDeadline&) = delete;
+
+private:
+    JsRuntime& js_;
 };
 
 } // namespace twk

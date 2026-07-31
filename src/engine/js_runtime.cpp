@@ -3,6 +3,8 @@
 //
 #include "engine/js_runtime.h"
 
+#include <cstdlib>
+
 namespace twk {
 
 namespace {
@@ -20,9 +22,47 @@ std::string cstr(JSContext* ctx, JSValueConst v) {
 
 } // namespace
 
+namespace {
+// Generous enough for the ~2MB bundle plus wallet working set, small enough that
+// a runaway allocation fails instead of exhausting the process.
+constexpr size_t kMemoryLimit = 512u * 1024u * 1024u;
+constexpr size_t kMaxStackSize = 4u * 1024u * 1024u;
+} // namespace
+
 JsRuntime::JsRuntime() {
     rt_ = JS_NewRuntime();
+    JS_SetMemoryLimit(rt_, kMemoryLimit);
+    JS_SetMaxStackSize(rt_, kMaxStackSize);
+    JS_SetInterruptHandler(rt_, &JsRuntime::interruptHandler, this);
+
+    // Tests (and hosts) can tighten the runaway-script budget.
+    if (const char* env = std::getenv("TWK_JS_BUDGET_MS")) {
+        long ms = std::atol(env);
+        if (ms > 0) {
+            budget_ = std::chrono::milliseconds(ms);
+        }
+    }
     ctx_ = JS_NewContext(rt_);
+}
+
+// Runs periodically during synchronous JS execution; non-zero aborts it.
+int JsRuntime::interruptHandler(JSRuntime* /*rt*/, void* opaque) {
+    auto* self = static_cast<JsRuntime*>(opaque);
+    int64_t deadline = self->deadline_.load(std::memory_order_relaxed);
+    if (deadline == 0) {
+        return 0; // no budget in force
+    }
+    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    return now > deadline ? 1 : 0;
+}
+
+void JsRuntime::startDeadline(std::chrono::milliseconds budget) {
+    auto at = std::chrono::steady_clock::now() + budget;
+    deadline_.store(at.time_since_epoch().count(), std::memory_order_relaxed);
+}
+
+void JsRuntime::clearDeadline() {
+    deadline_.store(0, std::memory_order_relaxed);
 }
 
 JsRuntime::~JsRuntime() {

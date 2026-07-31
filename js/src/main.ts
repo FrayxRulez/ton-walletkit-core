@@ -413,6 +413,18 @@ interface InitConfig {
         return { readyState: sseProbeSource?.readyState ?? 2 };
     },
 
+    /**
+     * Test hook: spins forever. Exists to prove the interrupt watchdog can stop a
+     * runaway script — without it this would wedge the worker thread and the
+     * client could never be destroyed.
+     */
+    async spinForever(): Promise<never> {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            /* deliberately empty */
+        }
+    },
+
     /** Test hook: pushes an event without a dapp, to exercise the update path. */
     async emitTestEvent(type: string, payload: unknown): Promise<{ ok: true }> {
         emitEvent(type, payload);

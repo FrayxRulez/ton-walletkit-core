@@ -139,6 +139,11 @@ bool install(JsRuntime& js, std::string* error) {
 
 void dispatch(JsRuntime& js, Client& client, uint64_t request_id, const std::string& method,
               const std::string& params_json) {
+    // Bound the synchronous part of the call. Legitimate work is far below this
+    // (createMnemonic is ~0.4s); the budget exists so a runaway script cannot
+    // wedge the worker thread and block teardown forever.
+    JsDeadline deadline(js);
+
     JSContext* ctx = js.context();
 
     JSValue global = JS_GetGlobalObject(ctx);
