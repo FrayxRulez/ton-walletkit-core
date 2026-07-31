@@ -73,12 +73,15 @@ namespace Ton.WalletKit
             PublicKey = publicKey;
         }
 
-        /// <summary>Balance in nanotons.</summary>
-        public async Task<string> GetBalanceAsync()
+        /// <summary>Current balance.</summary>
+        public async Task<TonAmount> GetBalanceAsync()
         {
             string json = await _kit.CallAsync("getBalance", Json.Args(Json.Quote(WalletId))).ConfigureAwait(false);
-            return Json.GetString(json, "balance");
+            return TonAmount.FromNanotons(Json.GetString(json, "balance"));
         }
+
+        /// <summary>Full account state for this wallet's address.</summary>
+        public Task<TonAccountState> GetStateAsync() => _kit.GetAddressStateAsync(Address);
 
         /// <summary>
         /// Builds an unsigned TON transfer. <paramref name="recipientAddress"/> must
@@ -86,11 +89,11 @@ namespace Ton.WalletKit
         /// is then rejected with a message that names the transaction, not the
         /// address. Returns the transaction JSON to sign or preview.
         /// </summary>
-        public async Task<string> CreateTransferAsync(string recipientAddress, string amountNanotons,
+        public async Task<string> CreateTransferAsync(string recipientAddress, TonAmount amount,
                                                       string comment = null)
         {
             string request = "{\"recipientAddress\":" + Json.Quote(recipientAddress) +
-                             ",\"transferAmount\":" + Json.Quote(amountNanotons) +
+                             ",\"transferAmount\":" + Json.Quote(amount.ToRawString()) +
                              (comment == null ? "" : ",\"comment\":" + Json.Quote(comment)) + "}";
             string json = await _kit.CallAsync("createTransferTonTransaction",
                                                Json.Args(Json.Quote(WalletId), request)).ConfigureAwait(false);
@@ -243,6 +246,47 @@ namespace Ton.WalletKit
             var signer = await CreateSignerAsync(mnemonic).ConfigureAwait(false);
             var adapter = await CreateV5R1AdapterAsync(signer, chainId).ConfigureAwait(false);
             return await AddWalletAsync(adapter).ConfigureAwait(false);
+        }
+
+        // ---- watch-only lookups (no wallet or signer required) -----------------
+
+        /// <summary>
+        /// Account state for any address: balance, status, last transaction.
+        /// Useful for inspecting an address the user does not control.
+        /// </summary>
+        public async Task<TonAccountState> GetAddressStateAsync(string address, string chainId = "-3")
+        {
+            string json = await CallAsync("getAddressState",
+                                          Json.Args(Json.Quote(address), Json.Quote(chainId))).ConfigureAwait(false);
+            return new TonAccountState
+            {
+                Address = Json.GetString(json, "address") ?? address,
+                Status = Json.GetString(json, "status"),
+                // rawBalance is the exact integer; "balance" is a formatted decimal.
+                Balance = TonAmount.FromNanotons(Json.GetString(json, "rawBalance")),
+                LastTransactionLt = Json.GetString(json, "lt"),
+                LastTransactionHash = Json.GetString(json, "hash"),
+                RawJson = Json.Result(json),
+            };
+        }
+
+        /// <summary>
+        /// Transaction history for any address.
+        /// </summary>
+        /// <remarks>
+        /// Currently throws for most addresses: walletkit's own response parser
+        /// (toTransactionsResponse) rejects well-formed toncenter replies with
+        /// "Invalid hash: data is required". The raw endpoint returns valid data,
+        /// so this is an upstream limitation, not a transport problem. Kept here so
+        /// it starts working when walletkit is updated.
+        /// </remarks>
+        public async Task<string> GetAddressTransactionsAsync(string address, string chainId = "-3", int limit = 10)
+        {
+            string json = await CallAsync("getAddressTransactions",
+                                          Json.Args(Json.Quote(address), Json.Quote(chainId),
+                                                    limit.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                                .ConfigureAwait(false);
+            return Json.Result(json);
         }
 
         // ---- TON Connect -------------------------------------------------------

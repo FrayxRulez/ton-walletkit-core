@@ -247,6 +247,26 @@ interface InitConfig {
         return { address, balance: String(balance) };
     },
 
+    /**
+     * Account state for any address — no wallet or signer required. This is the
+     * watch-only view: balance, status and the last transaction pointer.
+     */
+    async getAddressState(address: string, chainId?: string): Promise<unknown> {
+        const network = chainId ? Network.custom(chainId) : Network.testnet();
+        return requireKit().getApiClient(network).getAccountState(address);
+    },
+
+    /**
+     * Transaction history for any address (watch-only). `limit` is clamped to 100
+     * by walletkit.
+     */
+    async getAddressTransactions(address: string, chainId?: string, limit = 10, offset = 0): Promise<unknown> {
+        const network = chainId ? Network.custom(chainId) : Network.testnet();
+        return requireKit()
+            .getApiClient(network)
+            .getAccountTransactions({ address: [address], limit, offset });
+    },
+
     async createMnemonic(): Promise<string[]> {
         return await CreateTonMnemonic();
     },
