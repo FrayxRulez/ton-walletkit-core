@@ -92,6 +92,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_balance_smoke PRIVATE twk)
     add_test(NAME balance_smoke COMMAND twk_balance_smoke)
 
+    # M3 exit: full wallet lifecycle + restore-from-mnemonic, against fixtures.
+    add_executable(twk_lifecycle_smoke test/lifecycle_smoke.cpp)
+    target_link_libraries(twk_lifecycle_smoke PRIVATE twk)
+    add_test(NAME lifecycle_smoke COMMAND twk_lifecycle_smoke)
+
     # Storage delegate contract + persistence across clients.
     add_executable(twk_storage_smoke test/storage_smoke.cpp)
     target_link_libraries(twk_storage_smoke PRIVATE twk_refhost)
