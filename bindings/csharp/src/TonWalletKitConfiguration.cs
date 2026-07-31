@@ -84,7 +84,11 @@ namespace Ton.WalletKit
         /// </summary>
         public string BridgeUrl { get; set; }
 
-        /// <summary>Key an in-app browser injects the JS bridge under.</summary>
+        /// <summary>
+        /// Key an in-app browser would inject the JS bridge under. Serving a dapp
+        /// inside a WebView is not wired up yet — that needs a transport function
+        /// on the JS side — so this only names the key.
+        /// </summary>
         public string JsBridgeKey { get; set; }
 
         /// <summary>Heartbeat interval, milliseconds.</summary>
@@ -275,8 +279,12 @@ namespace Ton.WalletKit
             WriteIfSet(writer, "bridgeUrl", Bridge.BridgeUrl);
             if (Bridge.JsBridgeKey != null)
             {
+                // Only the injection key. Never enableJsBridge: that makes
+                // walletkit demand a jsBridgeTransport *function*, which a JSON
+                // ABI cannot carry, and initWalletKit then fails outright with
+                // "JS Bridge transport is not configured". Serving an in-app
+                // browser needs a transport in js/src/main.ts first.
                 writer.WriteString("jsBridgeKey", Bridge.JsBridgeKey);
-                writer.WriteBoolean("enableJsBridge", true);
             }
             if (Bridge.HeartbeatIntervalMs.HasValue)
             {

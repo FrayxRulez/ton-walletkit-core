@@ -96,6 +96,13 @@ var configuration = new TonWalletKitConfiguration
         UniversalLink = "https://example.test/ton-connect",
         BridgeUrl = "https://bridge.tonapi.io/bridge",
     },
+    // A bridge must be configured for TON Connect, and configuring one used to
+    // fail initialize outright ("JS Bridge transport is not configured").
+    Bridge = new TonBridgeConfiguration
+    {
+        BridgeUrl = "https://bridge.tonapi.io/bridge",
+        JsBridgeKey = "interop-smoke",
+    },
     Features = new List<TonFeature>
     {
         new TonFeature { Name = "SendTransaction", MaxMessages = 4 },
