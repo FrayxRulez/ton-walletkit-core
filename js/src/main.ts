@@ -9,10 +9,87 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CreateTonMnemonic } from '@ton/walletkit';
+import {
+    CreateTonMnemonic,
+    TonWalletKit,
+    ApiClientToncenter,
+    MemoryStorageAdapter,
+    Network,
+    type NetworkAdapters,
+} from '@ton/walletkit';
 import { hmac_sha512, pbkdf2_sha512, sha256, sha512, getSecureRandomBytes } from '@ton/crypto-primitives';
 
+/** The kit instance, created by init(). */
+let kit: TonWalletKit | undefined;
+
+function requireKit(): TonWalletKit {
+    if (!kit) {
+        throw new Error('WalletKit not initialized — call init first');
+    }
+    return kit;
+}
+
+/** Network config accepted by init(); mirrors kit-ios networkConfigurations. */
+interface NetworkConfig {
+    chainId?: string;
+    endpoint?: string;
+    apiKey?: string;
+    timeout?: number;
+}
+
+interface InitConfig {
+    networks?: NetworkConfig[];
+    walletManifest?: unknown;
+    deviceInfo?: unknown;
+    dev?: boolean;
+}
+
 (globalThis as any).walletKit = {
+    /**
+     * Build the kit (kit-ios initWalletKit analog). Each configured network gets an
+     * ApiClientToncenter, whose requests go out through our fetch shim -> the host's
+     * http_request delegate (TDLib on Windows, WinHTTP in the reference host).
+     * Storage is in-memory for now; the storage delegate lands in M3.
+     */
+    async init(config: InitConfig = {}): Promise<{ networks: string[] }> {
+        const networks: NetworkAdapters = {};
+        const configs = config.networks?.length ? config.networks : [{ chainId: Network.testnet().chainId }];
+
+        for (const entry of configs) {
+            const network = entry.chainId ? Network.custom(entry.chainId) : Network.testnet();
+            networks[network.chainId] = {
+                apiClient: new ApiClientToncenter({
+                    network,
+                    endpoint: entry.endpoint,
+                    apiKey: entry.apiKey,
+                    timeout: entry.timeout,
+                }),
+            };
+        }
+
+        kit = new TonWalletKit({
+            networks,
+            storage: new MemoryStorageAdapter({}),
+            walletManifest: config.walletManifest as any,
+            deviceInfo: config.deviceInfo as any,
+            dev: config.dev,
+        });
+        await kit.ensureInitialized();
+
+        return { networks: Object.keys(networks) };
+    },
+
+    /**
+     * Balance of an arbitrary address, in nanotons, via walletkit's own API client
+     * (no wallet required — wallets arrive in M3).
+     */
+    async getBalance(address: string, chainId?: string): Promise<{ address: string; balance: string }> {
+        const network = chainId ? Network.custom(chainId) : Network.testnet();
+        const client = requireKit().getApiClient(network);
+        const balance = await client.getBalance(address);
+        return { address, balance: String(balance) };
+    },
+
     async createMnemonic(): Promise<string[]> {
         return await CreateTonMnemonic();
     },

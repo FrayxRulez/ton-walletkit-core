@@ -23,6 +23,7 @@
 #include <string>
 #include <thread>
 
+#include "reference_host.h"
 #include "twk/twk.h"
 
 static void receiveLoop(twk_client* client, std::atomic<bool>* running, std::atomic<int>* received) {
@@ -38,7 +39,10 @@ static void receiveLoop(twk_client* client, std::atomic<bool>* running, std::ato
 }
 
 int main(int argc, char** argv) {
-    twk_client* client = twk_client_create(nullptr, nullptr);
+    // The reference host backs the delegates (real HTTP via the OS stack), so the
+    // CLI can drive network-touching calls without any platform integration.
+    twk::refhost::ReferenceHost host;
+    twk_client* client = twk_client_create(host.delegates(), host.userData());
 
     std::atomic<bool> running{true};
     std::atomic<int> received{0};
