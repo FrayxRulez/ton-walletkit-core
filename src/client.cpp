@@ -5,6 +5,7 @@
 
 #include <chrono>
 
+#include "bridge/transport.h"
 #include "engine/js_runtime.h"
 #include "twk/twk.h"
 
@@ -30,7 +31,14 @@ Client::~Client() {
 void Client::onStart() {
     js_ = new JsRuntime();
     js_->setOpaque(this);
-    // The bridge bundle + host globals are installed here in the next task.
+
+    // Install the host globals (__twk_emit) and evaluate the bundle, which defines
+    // walletkitBridge. With the M0 stub this cannot fail; M1+ surfaces load errors.
+    std::string error;
+    if (!bridge::install(*js_, &error)) {
+        // Nothing to route the failure to yet (no request in flight). Left as a
+        // no-op for the M0 stub; the load-error path gets wired with the real bundle.
+    }
 }
 
 void Client::afterWork() {
@@ -55,14 +63,8 @@ void Client::send(uint64_t request_id, std::string method, std::string params_js
 }
 
 void Client::handleCall(uint64_t request_id, const std::string& method, const std::string& params_json) {
-    // M0 placeholder: echo the call back as a result. Replaced by the bridge
-    // transport (native -> JS handleNativeCall -> JS -> native __twk_emit) next.
-    std::string result = "{\"result\":{\"method\":\"";
-    result += method;
-    result += "\",\"params\":";
-    result += params_json.empty() ? "null" : params_json;
-    result += "}}";
-    emit(request_id, std::move(result));
+    // native -> JS -> native: walletkitBridge.handleNativeCall(...) -> __twk_emit(...).
+    bridge::dispatch(*js_, *this, request_id, method, params_json);
 }
 
 void Client::emit(uint64_t request_id, std::string json) {

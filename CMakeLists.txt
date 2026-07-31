@@ -66,6 +66,11 @@ if(TWK_BUILD_TESTS)
     add_executable(twk_client_smoke test/client_smoke.cpp)
     target_link_libraries(twk_client_smoke PRIVATE twk)
     add_test(NAME client_smoke COMMAND twk_client_smoke)
+
+    # Bridge round-trip through JS (params normalized by a JSON parse/stringify).
+    add_executable(twk_bridge_smoke test/bridge_smoke.cpp)
+    target_link_libraries(twk_bridge_smoke PRIVATE twk)
+    add_test(NAME bridge_smoke COMMAND twk_bridge_smoke)
 endif()
 
 message(STATUS "ton-walletkit-core ${PROJECT_VERSION} configured (cli=${TWK_BUILD_CLI} tests=${TWK_BUILD_TESTS})")
