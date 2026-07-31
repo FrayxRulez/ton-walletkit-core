@@ -6,17 +6,20 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
 
 #include "engine/event_loop.h"
+#include "host_context.h"
 
 struct twk_delegates;
 
 namespace twk {
 
 class JsRuntime;
+class Shims;
 
 // One client = one QuickJS runtime on one worker thread + an output queue.
 //
@@ -39,6 +42,7 @@ public:
     void emit(uint64_t request_id, std::string json);
 
     JsRuntime* js() const { return js_; }
+    Shims& shims() const { return *shims_; }
 
 private:
     void onStart();
@@ -49,7 +53,9 @@ private:
     const twk_delegates* delegates_;
     void* user_;
 
-    JsRuntime* js_ = nullptr; // created/destroyed on the worker thread
+    JsRuntime* js_ = nullptr;              // created/destroyed on the worker thread
+    std::unique_ptr<Shims> shims_;         // ditto (worker thread lifetime)
+    HostContext host_context_;             // set as the JS context opaque
 
     std::mutex out_mutex_;
     std::condition_variable out_cv_;

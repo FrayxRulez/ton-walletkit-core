@@ -7,6 +7,7 @@
 
 #include "bridge/transport.h"
 #include "engine/js_runtime.h"
+#include "shims/shims.h"
 #include "twk/twk.h"
 
 namespace twk {
@@ -30,10 +31,18 @@ Client::~Client() {
 
 void Client::onStart() {
     js_ = new JsRuntime();
-    js_->setOpaque(this);
 
-    // Install the host globals (__twk_emit) and evaluate the bundle, which defines
-    // walletkitBridge. With the M0 stub this cannot fail; M1+ surfaces load errors.
+    // Expose the host objects to native callbacks via the context opaque.
+    shims_ = std::make_unique<Shims>(*js_, loop_);
+    host_context_.client = this;
+    host_context_.shims = shims_.get();
+    js_->setOpaque(&host_context_);
+
+    // Host globals (console/timers/crypto/Pbkdf2) must exist before the bundle runs.
+    shims_->install();
+
+    // Install the transport (__twk_emit) and evaluate the bundle. With the M0 stub
+    // this cannot fail; M1+ surfaces load errors.
     std::string error;
     if (!bridge::install(*js_, &error)) {
         // Nothing to route the failure to yet (no request in flight). Left as a
@@ -52,6 +61,7 @@ void Client::afterWork() {
 }
 
 void Client::onStop() {
+    shims_.reset(); // frees timer JSValues while the context is still alive (worker thread)
     delete js_;
     js_ = nullptr;
 }

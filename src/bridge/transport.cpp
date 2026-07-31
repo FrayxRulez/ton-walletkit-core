@@ -6,6 +6,7 @@
 #include "bundle.h" // generated: twk_bundle_js / twk_bundle_js_len
 #include "client.h"
 #include "engine/js_runtime.h"
+#include "host_context.h"
 
 namespace twk {
 namespace bridge {
@@ -16,7 +17,8 @@ namespace {
 //   envelope  : a {result} | {error} | {event} object
 //   requestId : the correlation id as a BigInt (0 for unsolicited updates)
 JSValue twk_emit(JSContext* ctx, JSValueConst /*this_val*/, int argc, JSValueConst* argv) {
-    auto* client = static_cast<Client*>(JS_GetContextOpaque(ctx));
+    auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
+    Client* client = hc != nullptr ? hc->client : nullptr;
     if (client == nullptr || argc < 1) {
         return JS_UNDEFINED;
     }

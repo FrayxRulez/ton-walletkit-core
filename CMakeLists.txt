@@ -72,6 +72,12 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_bridge_smoke PRIVATE twk)
     add_test(NAME bridge_smoke COMMAND twk_bridge_smoke)
 
+    # Host shims (console / getRandomValues / Pbkdf2 / timers).
+    add_executable(twk_shims_smoke test/shims_smoke.cpp)
+    target_link_libraries(twk_shims_smoke PRIVATE twk qjs)
+    target_include_directories(twk_shims_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME shims_smoke COMMAND twk_shims_smoke)
+
     # Teardown across varied in-flight states.
     add_executable(twk_teardown_stress test/teardown_stress.cpp)
     target_link_libraries(twk_teardown_stress PRIVATE twk)

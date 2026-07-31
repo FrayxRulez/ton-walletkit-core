@@ -16,6 +16,7 @@ add_custom_command(
 add_library(twk STATIC
     engine/js_runtime.cpp
     engine/event_loop.cpp
+    shims/shims.cpp
     bridge/transport.cpp
     client.cpp
     ${TWK_BUNDLE_OUT}
@@ -30,3 +31,8 @@ target_include_directories(twk
 # QuickJS is an internal implementation detail — linked PRIVATE so it does not
 # leak through the public ABI. Internal tests link `qjs` directly when they need it.
 target_link_libraries(twk PRIVATE qjs)
+
+# Platform crypto for the RNG / PBKDF2 shims (M2 routes these through host delegates).
+if(WIN32)
+    target_link_libraries(twk PRIVATE bcrypt)
+endif()
