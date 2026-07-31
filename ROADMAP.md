@@ -70,9 +70,22 @@ note `createMnemonic` is inherently variable (geometric, p=1/256 per attempt).
 - [ ] Verify inferred payload shapes against real responses (network param, `mnemonicType`, transfer-request
       fields, approve/reject array) — reconcile the C# facade's guesses.
 - 🎯 E2E happy path: `mnemonic → createSignerFromMnemonic → createV5R1WalletAdapter → addWallet → getBalance
-      → createTransferTonTransaction (fake signature) → getSignedSendTransaction`; wallet survives a
-      destroy/recreate via storage.
+      → createTransferTonTransaction (fake signature) → getSignedSendTransaction`; a fresh client restores
+      the wallet **by rebuilding it from a persisted mnemonic**.
 - 🧪 Lifecycle integration test (mock toncenter); storage delegate contract test (get-missing, set/get/remove/clear).
+
+> **Correction (found while implementing):** the original criterion said "wallet survives a destroy/recreate
+> via storage". That is impossible — **walletkit persists neither wallets nor signers** (`WalletManager` holds
+> an in-memory Map; its `storageKey`/`loadWallets` are commented out in the shipped code). The storage
+> delegate holds TON Connect sessions, the bridge `lastEventId`, and the event store. So the host must
+> persist the mnemonic/secret itself, deliberately and in a secure store, and rebuild
+> signer → adapter → wallet on startup. Storage must still be confidential, because session private keys
+> live there. See `docs/API.md`.
+
+**M3 done.** Verified payload shapes are recorded in `docs/API.md` (several earlier assumptions were wrong —
+`walletId` is a base64 hash, `recipientAddress` must be user-friendly form, transfer fields are
+`recipientAddress`/`transferAmount`). Public JSON API names mirror kit-ios, with object arguments replaced by
+ids because a JSON ABI cannot carry objects.
 
 ## M4 — TON Connect (SSE)
 ⚠️ Prove **unsolicited updates** (`request_id=0`) and the SSE relay path.
