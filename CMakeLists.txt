@@ -42,6 +42,9 @@ add_subdirectory(tools/twk-bundlec)
 # ---- core library --------------------------- (M0: js_runtime/event_loop/client)
 add_subdirectory(src)
 
+# ---- reference host (test-only delegate implementation) --------------------
+add_subdirectory(host)
+
 # ---- test driver ------------------------------------------ (M0: twk-cli)
 if(TWK_BUILD_CLI)
     add_subdirectory(tools/twk-cli)
@@ -82,6 +85,11 @@ if(TWK_BUILD_TESTS)
     add_executable(twk_mnemonic_smoke test/mnemonic_smoke.cpp)
     target_link_libraries(twk_mnemonic_smoke PRIVATE twk)
     add_test(NAME mnemonic_smoke COMMAND twk_mnemonic_smoke)
+
+    # Live network through the reference host (opt-in: TWK_LIVE_NETWORK_TESTS=1).
+    add_executable(twk_refhost_smoke test/refhost_smoke.cpp)
+    target_link_libraries(twk_refhost_smoke PRIVATE twk_refhost)
+    add_test(NAME refhost_smoke COMMAND twk_refhost_smoke)
 
     # JS fetch shim end to end (fetch -> __twk_http -> delegate -> Response).
     add_executable(twk_fetch_smoke test/fetch_smoke.cpp)
