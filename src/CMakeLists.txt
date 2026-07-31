@@ -2,6 +2,7 @@
 # library exposing the C ABI comes with the packaging milestone (M6/M8).
 add_library(twk STATIC
     engine/js_runtime.cpp
+    engine/event_loop.cpp
 )
 
 target_include_directories(twk

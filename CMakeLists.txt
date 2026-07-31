@@ -55,6 +55,12 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_engine_smoke PRIVATE twk qjs)
     target_include_directories(twk_engine_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME engine_smoke COMMAND twk_engine_smoke)
+
+    # EventLoop sanity (tasks, timers, cancellation, JS microtask pump).
+    add_executable(twk_event_loop_smoke test/event_loop_smoke.cpp)
+    target_link_libraries(twk_event_loop_smoke PRIVATE twk qjs)
+    target_include_directories(twk_event_loop_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_test(NAME event_loop_smoke COMMAND twk_event_loop_smoke)
 endif()
 
 message(STATUS "ton-walletkit-core ${PROJECT_VERSION} configured (cli=${TWK_BUILD_CLI} tests=${TWK_BUILD_TESTS})")
