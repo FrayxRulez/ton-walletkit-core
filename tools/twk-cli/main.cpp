@@ -26,6 +26,10 @@
 #include "reference_host.h"
 #include "twk/twk.h"
 
+// Set to the id whose response we are waiting for in sequential mode (0 = none);
+// cleared by the receive loop when that response arrives.
+static std::atomic<unsigned long long> g_awaiting{0};
+
 static void receiveLoop(twk_client* client, std::atomic<bool>* running, std::atomic<int>* received) {
     while (running->load()) {
         unsigned long long rid = 0;
@@ -34,6 +38,9 @@ static void receiveLoop(twk_client* client, std::atomic<bool>* running, std::ato
             std::printf("<< id=%llu %s\n", rid, out);
             std::fflush(stdout);
             received->fetch_add(1);
+            if (g_awaiting.load() == rid) {
+                g_awaiting.store(0);
+            }
         }
     }
 }
@@ -49,12 +56,26 @@ int main(int argc, char** argv) {
     int sent = 0;
     std::thread rx(receiveLoop, client, &running, &received);
 
+    // --sequential: wait for each request's response before sending the next.
+    // Required for dependent flows (a signer id only exists once its call
+    // resolved); without it every line is dispatched concurrently.
+    bool sequential = false;
+    const char* path = nullptr;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--sequential" || arg == "-s") {
+            sequential = true;
+        } else {
+            path = argv[i];
+        }
+    }
+
     std::ifstream file;
     std::istream* in = &std::cin;
-    if (argc > 1) {
-        file.open(argv[1]);
+    if (path != nullptr) {
+        file.open(path);
         if (!file) {
-            std::fprintf(stderr, "twk-cli: cannot open %s\n", argv[1]);
+            std::fprintf(stderr, "twk-cli: cannot open %s\n", path);
             running.store(false);
             rx.join();
             twk_client_destroy(client);
@@ -88,8 +109,20 @@ int main(int argc, char** argv) {
 
         std::printf(">> id=%llu method=%s\n", id, method.c_str());
         std::fflush(stdout);
+        if (sequential) {
+            g_awaiting.store(id);
+        }
         twk_send(client, id, method.c_str(), params.empty() ? nullptr : params.c_str());
         ++sent;
+
+        if (sequential) {
+            // Dependent calls (an adapter needs its signer's id) require the
+            // previous response before the next request can be built.
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+            while (g_awaiting.load() == id && std::chrono::steady_clock::now() < deadline) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        }
     }
 
     // Wait for every response (loading the full bundle can take a moment), up to a

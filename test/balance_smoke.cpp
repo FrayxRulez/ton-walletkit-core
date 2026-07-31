@@ -78,14 +78,14 @@ int main() {
 
     // init: build the kit with a testnet ApiClientToncenter.
     std::string result =
-        call(c, 1, "init", "[{\"networks\":[{\"chainId\":\"-3\",\"endpoint\":\"https://testnet.toncenter.com\"}]}]");
+        call(c, 1, "initWalletKit", "[{\"networks\":[{\"chainId\":\"-3\",\"endpoint\":\"https://testnet.toncenter.com\"}]}]");
     bool got = contains(result, "\"networks\"") && contains(result, "-3");
     printf("%s: init -> %.90s\n", got ? "ok" : "FAIL", result.c_str());
     ok = ok && got;
 
     // getBalance through walletkit's own client (not a diagnostic shortcut).
     std::string params = std::string("[\"") + kElector + "\",\"-3\"]";
-    result = call(c, 2, "getBalance", params.c_str());
+    result = call(c, 2, "getAddressBalance", params.c_str());
     got = contains(result, "\"balance\":\"110576459116021734\"");
     printf("%s: getBalance -> %.140s\n", got ? "ok" : "FAIL", result.c_str());
     ok = ok && got;
@@ -103,14 +103,14 @@ int main() {
 
     // HTTP 500 -> the call rejects rather than yielding a bogus balance.
     g_mode.store(Mode::ServerError);
-    result = call(c, 3, "getBalance", params.c_str());
+    result = call(c, 3, "getAddressBalance", params.c_str());
     got = contains(result, "\"error\"") && !contains(result, "\"balance\"");
     printf("%s: HTTP 500 -> %.110s\n", got ? "ok" : "FAIL", result.c_str());
     ok = ok && got;
 
     // Malformed body -> rejects too.
     g_mode.store(Mode::Malformed);
-    result = call(c, 4, "getBalance", params.c_str());
+    result = call(c, 4, "getAddressBalance", params.c_str());
     got = contains(result, "\"error\"") && !contains(result, "\"balance\"");
     printf("%s: malformed body -> %.110s\n", got ? "ok" : "FAIL", result.c_str());
     ok = ok && got;

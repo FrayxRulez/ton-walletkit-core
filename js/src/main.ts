@@ -15,6 +15,9 @@ import {
     ApiClientToncenter,
     MemoryStorageAdapter,
     Network,
+    Signer,
+    WalletV4R2Adapter,
+    WalletV5R1Adapter,
     type NetworkAdapters,
 } from '@ton/walletkit';
 import { hmac_sha512, pbkdf2_sha512, sha256, sha512, getSecureRandomBytes } from '@ton/crypto-primitives';
@@ -28,6 +31,90 @@ function requireKit(): TonWalletKit {
         throw new Error('WalletKit not initialized — call init first');
     }
     return kit;
+}
+
+/**
+ * Object-by-id registry.
+ *
+ * The C ABI is JSON, so live objects (signers, adapters) are addressed by id.
+ * The lookup lives here because every operation ultimately calls a method on a
+ * JS object; holding the reference natively would only hand it straight back.
+ * Callers must `release(id)` when done — nothing is collected automatically.
+ *
+ * Note wallets are NOT kept here: walletkit's WalletManager owns them and
+ * addresses them by its own walletId (network:address).
+ */
+const objects = new Map<string, unknown>();
+let nextObjectId = 1;
+
+function retain(kind: string, value: unknown): string {
+    const id = `${kind}:${nextObjectId++}`;
+    objects.set(id, value);
+    return id;
+}
+
+function resolve<T>(id: string, kind: string): T {
+    const value = objects.get(id);
+    if (value === undefined) {
+        throw new Error(`Unknown ${kind} id: ${id}`);
+    }
+    return value as T;
+}
+
+/** Best-effort read of a getter that may not exist on every implementation. */
+function tryCall(target: any, method: string): unknown {
+    try {
+        return typeof target?.[method] === 'function' ? target[method]() : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+interface AdapterParams {
+    chainId?: string;
+    /** TON subwallet id (default 0) — not the kit's walletId. */
+    walletId?: number;
+    workchain?: number;
+}
+
+interface AdapterInfo {
+    adapterId: string;
+    address: unknown;
+    chainId: string;
+}
+
+/**
+ * Adapters need the network's API client (they read seqno/state on chain), which
+ * is why init() must run first — mirrors kit-ios createV5R1WalletAdapter.
+ */
+async function createAdapter(
+    Adapter: { create: (signer: any, options: any) => Promise<any> },
+    signerId: string,
+    params: AdapterParams,
+): Promise<AdapterInfo> {
+    const signer = resolve<any>(signerId, 'signer');
+    const network = params.chainId ? Network.custom(params.chainId) : Network.testnet();
+    const adapter = await Adapter.create(signer, {
+        client: requireKit().getApiClient(network),
+        network,
+        walletId: params.walletId,
+        workchain: params.workchain,
+    });
+    return {
+        adapterId: retain('adapter', adapter),
+        address: tryCall(adapter, 'getAddress'),
+        chainId: network.chainId,
+    };
+}
+
+function describeWallet(wallet: any) {
+    return {
+        walletId: tryCall(wallet, 'getWalletId'),
+        address: tryCall(wallet, 'getAddress'),
+        publicKey: tryCall(wallet, 'getPublicKey'),
+        version: tryCall(wallet, 'getVersion'),
+        network: tryCall(wallet, 'getNetwork'),
+    };
 }
 
 /** Network config accepted by init(); mirrors kit-ios networkConfigurations. */
@@ -54,7 +141,7 @@ interface InitConfig {
      * http_request delegate (TDLib on Windows, WinHTTP in the reference host).
      * Storage is in-memory for now; the storage delegate lands in M3.
      */
-    async init(config: InitConfig = {}): Promise<{ networks: string[] }> {
+    async initWalletKit(config: InitConfig = {}): Promise<{ networks: string[] }> {
         const networks: NetworkAdapters = {};
         const configs = config.networks?.length ? config.networks : [{ chainId: Network.testnet().chainId }];
 
@@ -88,11 +175,17 @@ interface InitConfig {
         return { networks: Object.keys(networks) };
     },
 
+    /** True once initWalletKit has completed (kit-ios isReady). */
+    async isReady(): Promise<boolean> {
+        return kit !== undefined;
+    },
+
     /**
-     * Balance of an arbitrary address, in nanotons, via walletkit's own API client
-     * (no wallet required — wallets arrive in M3).
+     * Balance of an arbitrary address, in nanotons, via walletkit's own API client.
+     * Deliberately NOT named getBalance: in kit-ios that is a method on a wallet,
+     * which this is not — it needs no wallet at all.
      */
-    async getBalance(address: string, chainId?: string): Promise<{ address: string; balance: string }> {
+    async getAddressBalance(address: string, chainId?: string): Promise<{ address: string; balance: string }> {
         const network = chainId ? Network.custom(chainId) : Network.testnet();
         const client = requireKit().getApiClient(network);
         const balance = await client.getBalance(address);
@@ -101,6 +194,69 @@ interface InitConfig {
 
     async createMnemonic(): Promise<string[]> {
         return await CreateTonMnemonic();
+    },
+
+    // ---- signers ---------------------------------------------------------
+    // The secret key stays inside the JS Signer; only its id and public key
+    // cross the ABI. walletkit never persists signers, so the host is
+    // responsible for storing the mnemonic securely and re-creating the signer.
+
+    async createSignerFromMnemonic(
+        mnemonic: string | string[],
+        type = 'ton',
+    ): Promise<{ signerId: string; publicKey: string }> {
+        const signer = await Signer.fromMnemonic(mnemonic as any, { type } as any);
+        return { signerId: retain('signer', signer), publicKey: signer.publicKey };
+    },
+
+    async createSignerFromPrivateKey(secretKey: string): Promise<{ signerId: string; publicKey: string }> {
+        const signer = await Signer.fromPrivateKey(secretKey);
+        return { signerId: retain('signer', signer), publicKey: signer.publicKey };
+    },
+
+    // ---- wallet adapters -------------------------------------------------
+
+    async createV5R1WalletAdapter(signerId: string, params: AdapterParams = {}): Promise<AdapterInfo> {
+        return createAdapter(WalletV5R1Adapter, signerId, params);
+    },
+
+    async createV4R2WalletAdapter(signerId: string, params: AdapterParams = {}): Promise<AdapterInfo> {
+        return createAdapter(WalletV4R2Adapter, signerId, params);
+    },
+
+    // ---- wallets ---------------------------------------------------------
+
+    /** Registers an adapter with the kit; the wallet is then addressed by walletId. */
+    async addWallet(adapterId: string): Promise<unknown> {
+        const adapter = resolve<any>(adapterId, 'adapter');
+        const wallet = await requireKit().addWallet(adapter);
+        return describeWallet(wallet);
+    },
+
+    async getWallets(): Promise<unknown[]> {
+        return requireKit()
+            .getWallets()
+            .map((wallet) => describeWallet(wallet));
+    },
+
+    async getWallet(walletId: string): Promise<unknown> {
+        const wallet = requireKit().getWallet(walletId);
+        return wallet ? describeWallet(wallet) : null;
+    },
+
+    async removeWallet(walletId: string): Promise<{ ok: true }> {
+        await requireKit().removeWallet(walletId);
+        return { ok: true };
+    },
+
+    async clearWallets(): Promise<{ ok: true }> {
+        await requireKit().clearWallets();
+        return { ok: true };
+    },
+
+    /** Drops a retained signer/adapter. Ids are not collected automatically. */
+    async release(id: string): Promise<{ released: boolean }> {
+        return { released: objects.delete(id) };
     },
 
     // Times each crypto primitive the mnemonic path uses, to show which ones are
