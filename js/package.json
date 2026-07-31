@@ -1,0 +1,26 @@
+{
+  "name": "ton-walletkit-core-js",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "The JS that ton-walletkit-core runs in QuickJS: the canonical @ton/walletkit + kit-ios-derived polyfills + the bridge. Built to dist/bundle.js and embedded into the native core.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ton/core": "^0.62.0",
+    "@ton/crypto": "^3.3.0",
+    "@ton/crypto-primitives": "^2.1.0",
+    "@ton/walletkit": "^1.0.0",
+    "buffer": "^6.0.3",
+    "whatwg-url": "^16.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
