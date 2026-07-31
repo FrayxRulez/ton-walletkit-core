@@ -8,6 +8,24 @@ project(ton_walletkit_core
 # ---- options --------------------------------------------------------------
 option(TWK_BUILD_CLI   "Build the twk-cli test driver"   ON)
 option(TWK_BUILD_TESTS "Build unit / integration tests"  ON)
+set(TWK_SANITIZE "" CACHE STRING "Sanitizer to build with: address | undefined | thread (empty = none)")
+
+if(TWK_SANITIZE)
+    message(STATUS "twk: building with sanitizer '${TWK_SANITIZE}'")
+    if(MSVC)
+        if(NOT TWK_SANITIZE STREQUAL "address")
+            message(FATAL_ERROR "twk: MSVC only supports TWK_SANITIZE=address")
+        endif()
+        add_compile_options(/fsanitize=address /Zi)
+        # ASan is incompatible with incremental linking and edit-and-continue.
+        add_link_options(/INCREMENTAL:NO)
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    else()
+        add_compile_options(-fsanitize=${TWK_SANITIZE} -fno-omit-frame-pointer -g)
+        add_link_options(-fsanitize=${TWK_SANITIZE})
+    endif()
+endif()
 
 # ---- global settings ------------------------------------------------------
 set(CMAKE_C_STANDARD 11)

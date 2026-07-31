@@ -39,7 +39,7 @@ static bool test_partial_receive() {
             twk_send(c, static_cast<unsigned long long>(j + 1), "echo", "null");
         }
         unsigned long long rid = 0;
-        twk_receive(c, 2.0, &rid); // drain just one; leave the rest queued
+        twk_receive(c, 60.0, &rid); // drain just one; leave the rest queued
         twk_client_destroy(c);
     }
     return true;
@@ -52,7 +52,7 @@ static bool test_send_receive_loop() {
     for (unsigned long long i = 1; i <= 10; ++i) {
         twk_send(c, i, "echo", "null");
         unsigned long long rid = 0;
-        const char* out = twk_receive(c, 2.0, &rid);
+        const char* out = twk_receive(c, 60.0, &rid);
         if (!out || rid != i) {
             printf("send_receive_loop: expected %llu, got %llu\n", i, rid);
             ok = false;

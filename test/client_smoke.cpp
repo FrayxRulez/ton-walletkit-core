@@ -15,7 +15,7 @@ static bool test_send_receive() {
     twk_send(c, 7, "echo", "[{\"x\":1}]"); // positional args: echo({x:1})
 
     unsigned long long rid = 0;
-    const char* out = twk_receive(c, 2.0, &rid);
+    const char* out = twk_receive(c, 60.0, &rid);
 
     bool ok = out && rid == 7 && contains(out, "\"result\"") && contains(out, "\"x\":1");
     if (!ok) {
@@ -30,11 +30,11 @@ static bool test_error() {
 
     twk_send(c, 1, "fail", "[]"); // stub throws -> {error}
     unsigned long long rid = 0;
-    const char* out = twk_receive(c, 2.0, &rid);
+    const char* out = twk_receive(c, 60.0, &rid);
     bool ok = out && rid == 1 && contains(out, "\"error\"");
 
     twk_send(c, 2, "doesNotExist", "[]"); // unknown method -> {error}
-    const char* out2 = twk_receive(c, 2.0, &rid);
+    const char* out2 = twk_receive(c, 60.0, &rid);
     ok = ok && out2 && rid == 2 && contains(out2, "unknown method");
 
     if (!ok) {
@@ -67,7 +67,7 @@ static bool test_ordering() {
     bool ok = true;
     for (unsigned long long expect = 1; expect <= 3; ++expect) {
         unsigned long long rid = 0;
-        const char* out = twk_receive(c, 2.0, &rid);
+        const char* out = twk_receive(c, 60.0, &rid);
         if (!out || rid != expect) {
             printf("ordering: expected rid %llu, got %llu\n", expect, rid);
             ok = false;

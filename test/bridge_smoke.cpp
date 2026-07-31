@@ -16,7 +16,7 @@ int main() {
     twk_send(c, 42, "echo", "[{\"n\":1e3,\"s\":\"hi\"}]"); // positional args: echo({n:1e3,s:'hi'})
 
     unsigned long long rid = 0;
-    const char* out = twk_receive(c, 2.0, &rid);
+    const char* out = twk_receive(c, 60.0, &rid);
 
     bool ok = out && rid == 42 && contains(out, "\"result\"") &&
               contains(out, "\"n\":1000") &&  // 1e3 normalized by JS JSON round-trip
