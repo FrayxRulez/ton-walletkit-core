@@ -1,0 +1,30 @@
+# build output
+/build/
+/build-*/
+/out/
+/cmake-build-*/
+compile_commands.json
+.cache/
+
+# native artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exp
+*.ilk
+*.pdb
+
+# js bundle build
+/js/node_modules/
+/js/dist/
+/js/.esbuild/
+
+# editors / os
+.DS_Store
+.vs/
+.vscode/
+.idea/
