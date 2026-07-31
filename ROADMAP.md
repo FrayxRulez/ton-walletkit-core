@@ -105,6 +105,16 @@ ids because a JSON ABI cannot carry objects.
 - 🎯 CI green on Linux + macOS + Windows **desktop**; sanitizers clean; contract tests pass.
 - 🧪 The above become permanent CI gates.
 
+**M5 done.** 22/22 tests clean under AddressSanitizer (`scripts\win-asan.bat`). Added QuickJS resource
+limits + a runaway-script watchdog (a spinning script used to wedge the worker thread forever, blocking
+teardown), a robustness suite (malformed/oversized input, misbehaving hosts that double-complete and invent
+tokens), and concurrency stress (8 senders x 40 requests, each answered exactly once; destroy racing
+in-flight completions).
+
+> **Gap, stated plainly:** MSVC ships **only ASan** — no TSan, no UBSan. Data races and UB are therefore
+> *not* covered by tooling on Windows; the stress test only makes races more likely to surface. Real
+> coverage needs Linux/clang, which belongs with the cross-platform CI in M8.
+
 ## M6 — Windows / UWP binding (the product integration)
 ⚠️ Ship it inside Unigram; retire the WebView2 engine.
 - [ ] `bindings/csharp`: P/Invoke over `twk.h`; the `receive` loop on a dedicated thread; `request_id →
