@@ -47,6 +47,28 @@ so `initWalletKit` must run first.
 `createTransferTonTransaction` params (walletkit's own field names):
 `{recipientAddress, transferAmount, comment? | payload?, stateInit?, extraCurrency?, mode?}`.
 
+## TON Connect
+
+| method | args | notes |
+|---|---|---|
+| `handleTonConnectUrl` | `[tcUrl]` | the connect request is carried **in the URL**; no dapp round-trip needed to raise it |
+| `getSessions` / `disconnect` | `[]` / `[sessionId]` | |
+| `approveConnectRequest` / `rejectConnectRequest` | `[event, response?]` / `[event, reason?]` | |
+| `approveTransactionRequest` / `reject…` | `[event, …]` | same shape for signData / signMessage |
+
+Requests arrive as **unsolicited updates** (`request_id = 0`):
+`{"event":{"type":"connectRequest","payload":{…}}}`. Pass that `payload` back to the matching
+approve/reject call. Types: `connectRequest`, `transactionRequest`, `signDataRequest`,
+`signMessageRequest`, `disconnect`.
+
+Two things are required and are not obvious from the errors:
+
+1. **Set `walletId` on the event before approving** — this is the user choosing which account to
+   connect. Without it: `WalletKitError: Wallet is required for embedded request approval`.
+2. **`initWalletKit` must be given `bridge` config** (`bridgeUrl`, `deviceInfo`, `walletInfo`,
+   `jsBridgeKey`), because the approval is sent back to the dapp through the relay. Without it:
+   `Bridge not initialized for sending response`.
+
 ## Verified shapes (and corrected assumptions)
 
 - **`walletId` is a base64 hash** (`"pR15i8TgSLrN4Qf+plz+VOdxDPzDxtNaJCAFnGkt+70="`), **not**

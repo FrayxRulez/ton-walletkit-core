@@ -174,6 +174,17 @@ interface InitConfig {
     dev?: boolean;
     /** Key prefix for host storage (namespaces one account's data). */
     storagePrefix?: string;
+    /**
+     * TON Connect bridge. Required to answer dapps: approvals are sent back
+     * through the relay, so without it approve* fails with "Bridge not
+     * initialized for sending response". Mirrors kit-ios configuration.bridge.
+     */
+    bridge?: {
+        bridgeUrl?: string;
+        deviceInfo?: unknown;
+        walletInfo?: unknown;
+        jsBridgeKey?: string;
+    };
 }
 
 (globalThis as any).walletKit = {
@@ -210,6 +221,7 @@ interface InitConfig {
             storage: storage as any,
             walletManifest: config.walletManifest as any,
             deviceInfo: config.deviceInfo as any,
+            bridge: config.bridge as any,
             dev: config.dev,
         });
         await kit.ensureInitialized();

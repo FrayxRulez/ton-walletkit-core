@@ -11,9 +11,15 @@
 async function bootstrap(): Promise<void> {
     let loading = 'window';
     try {
-        // The kit-ios polyfills target a JSCore host that exposes `window`.
-        if (typeof (globalThis as any).window === 'undefined') {
-            (globalThis as any).window = globalThis;
+        // The kit-ios polyfills target a JSCore host that exposes `window` and
+        // `self`. `self` is not optional: tweetnacl probes
+        //   typeof self !== 'undefined' ? (self.crypto || self.msCrypto) : null
+        // to find a PRNG, so without it key generation dies with "no PRNG" — and
+        // only once something actually generates keys (TON Connect sessions).
+        for (const name of ['window', 'self', 'global'] as const) {
+            if (typeof (globalThis as any)[name] === 'undefined') {
+                (globalThis as any)[name] = globalThis;
+            }
         }
 
         // Static-literal dynamic imports so esbuild inlines them (a variable
