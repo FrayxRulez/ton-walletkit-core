@@ -196,7 +196,8 @@ int main() {
         if (!wallet_id.empty()) {
             // Balance comes from the recorded account state.
             result = call(c, 14, "getBalance", "[\"" + wallet_id + "\"]");
-            got = contains(result, "\"balance\":\"250000000\"");
+            // Returns the amount itself, as walletkit does — not a wrapper object.
+            got = contains(result, "\"result\":\"250000000\"");
             printf("%s: getBalance -> %.90s\n", got ? "ok" : "FAIL", result.c_str());
             ok = ok && got;
 
@@ -215,7 +216,8 @@ int main() {
                 transaction = transaction.substr(0, transaction.rfind('}')); // strip the envelope
                 std::string sign_params = "[\"" + wallet_id + "\"," + transaction + ",{\"fakeSignature\":true}]";
                 result = call(c, 16, "getSignedSendTransaction", sign_params);
-                got = contains(result, "\"boc\"");
+                // The BOC itself: a base64 string, so the envelope is {"result":"te6…"}.
+                got = contains(result, "\"result\":\"te6");
                 printf("%s: getSignedSendTransaction (fake sig) -> %.100s\n", got ? "ok" : "FAIL",
                        result.c_str());
                 ok = ok && got;

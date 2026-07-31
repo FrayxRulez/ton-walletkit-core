@@ -80,6 +80,9 @@ interface AdapterParams {
 interface AdapterInfo {
     adapterId: string;
     address: unknown;
+    publicKey: unknown;
+    walletId: unknown;
+    network: unknown;
     chainId: string;
 }
 
@@ -103,6 +106,9 @@ async function createAdapter(
     return {
         adapterId: retain('adapter', adapter),
         address: tryCall(adapter, 'getAddress'),
+        publicKey: tryCall(adapter, 'getPublicKey'),
+        walletId: tryCall(adapter, 'getWalletId'),
+        network: tryCall(adapter, 'getNetwork'),
         chainId: network.chainId,
     };
 }
@@ -149,6 +155,15 @@ function requireWallet(walletId: string): any {
     return wallet;
 }
 
+/**
+ * The adapter methods (sign, stateInit, …) work on either a retained adapter id
+ * or a registered walletId, because a wallet *is* a WalletAdapter — same as
+ * kit-ios, where TONWallet conforms to TONWalletAdapterProtocol.
+ */
+function requireAdapter(id: string): any {
+    return objects.has(id) ? objects.get(id) : requireWallet(id);
+}
+
 function describeWallet(wallet: any) {
     return {
         walletId: tryCall(wallet, 'getWalletId'),
@@ -171,7 +186,11 @@ interface InitConfig {
     networks?: NetworkConfig[];
     walletManifest?: unknown;
     deviceInfo?: unknown;
-    dev?: boolean;
+    /** kit-ios devConfiguration: test hooks, not a boolean. */
+    dev?: {
+        disableNetworkSend?: boolean;
+        disableManifestDomainCheck?: boolean;
+    };
     /** Key prefix for host storage (namespaces one account's data). */
     storagePrefix?: string;
     /**
@@ -289,6 +308,11 @@ interface InitConfig {
         return { signerId: retain('signer', signer), publicKey: signer.publicKey };
     },
 
+    /** Signs raw bytes with a retained signer (kit-ios signer.sign). */
+    async sign(signerId: string, data: number[]): Promise<string> {
+        return resolve<any>(signerId, 'signer').sign(Uint8Array.from(data));
+    },
+
     // ---- wallet adapters -------------------------------------------------
 
     async createV5R1WalletAdapter(signerId: string, params: AdapterParams = {}): Promise<AdapterInfo> {
@@ -329,25 +353,13 @@ interface InitConfig {
         return { ok: true };
     },
 
-    // ---- wallet operations (kit-ios wallet.* methods, walletId first) ------
+    // ---- adapter operations (kit-ios TONWalletAdapterProtocol) -------------
+    // `id` is an adapter id or a walletId: a registered wallet is also an
+    // adapter, so both answer these.
 
-    /** Wallet balance in nanotons (kit-ios wallet.getBalance()). */
-    async getBalance(walletId: string): Promise<{ balance: string }> {
-        return { balance: String(await requireWallet(walletId).getBalance()) };
-    },
-
-    /**
-     * Builds an unsigned TON transfer (kit-ios wallet.createTransferTonTransaction).
-     * Fields are walletkit's own: recipientAddress, transferAmount (nanotons),
-     * and optionally comment | payload, stateInit, extraCurrency, mode.
-     */
-    async createTransferTonTransaction(walletId: string, params: unknown): Promise<unknown> {
-        return requireWallet(walletId).createTransferTonTransaction(params);
-    },
-
-    /** Fee/effect preview for a built transaction. */
-    async getTransactionPreview(walletId: string, transaction: unknown, options?: unknown): Promise<unknown> {
-        return requireWallet(walletId).getTransactionPreview(transaction, options);
+    /** Deployment state init, base64 BOC (kit-ios adapter.stateInit()). */
+    async getStateInit(id: string): Promise<string> {
+        return requireAdapter(id).getStateInit();
     },
 
     /**
@@ -356,19 +368,101 @@ interface InitConfig {
      * tests, so no test can accidentally move real funds.
      */
     async getSignedSendTransaction(
-        walletId: string,
+        id: string,
         transaction: unknown,
         options: { fakeSignature?: boolean } = {},
-    ): Promise<{ boc: string }> {
-        const boc = await requireWallet(walletId).getSignedSendTransaction(transaction, {
-            fakeSignature: options.fakeSignature ?? false,
+    ): Promise<string> {
+        return requireAdapter(id).getSignedSendTransaction(transaction, {
+            fakeSignature: options?.fakeSignature ?? false,
         });
-        return { boc: String(boc) };
+    },
+
+    /** Signs a transaction as a TON Connect signMessage response. */
+    async getSignedSignMessage(id: string, transaction: unknown, options?: unknown): Promise<string> {
+        return requireAdapter(id).getSignedSignMessage(transaction, options);
+    },
+
+    /** Signs prepared sign-data; returns a hex signature. */
+    async getSignedSignData(id: string, input: unknown, options?: unknown): Promise<string> {
+        return requireAdapter(id).getSignedSignData(input, options);
+    },
+
+    /** Signs a ton_proof message; returns a hex signature. */
+    async getSignedTonProof(id: string, input: unknown, options?: unknown): Promise<string> {
+        return requireAdapter(id).getSignedTonProof(input, options);
+    },
+
+    /** TON Connect features this adapter supports, or null. */
+    async getSupportedFeatures(id: string): Promise<unknown> {
+        return tryCall(requireAdapter(id), 'getSupportedFeatures') ?? null;
+    },
+
+    // ---- wallet operations (kit-ios wallet.* methods, walletId first) ------
+
+    /** Wallet balance in nanotons (kit-ios wallet.balance()). */
+    async getBalance(walletId: string): Promise<string> {
+        return String(await requireWallet(walletId).getBalance());
+    },
+
+    /**
+     * Builds an unsigned TON transfer (kit-ios wallet.transferTONTransaction).
+     * Fields are walletkit's own: recipientAddress, transferAmount (nanotons),
+     * and optionally comment | payload, stateInit, extraCurrency, mode.
+     */
+    async createTransferTonTransaction(walletId: string, params: unknown): Promise<unknown> {
+        return requireWallet(walletId).createTransferTonTransaction(params);
+    },
+
+    /** Several TON transfers in one transaction. */
+    async createTransferMultiTonTransaction(walletId: string, params: unknown[]): Promise<unknown> {
+        return requireWallet(walletId).createTransferMultiTonTransaction(params);
+    },
+
+    /** Fee/effect preview for a built transaction. */
+    async getTransactionPreview(walletId: string, transaction: unknown, options?: unknown): Promise<unknown> {
+        return requireWallet(walletId).getTransactionPreview(transaction, options);
     },
 
     /** Signs and broadcasts. This spends real funds — never called by tests. */
     async sendTransaction(walletId: string, transaction: unknown): Promise<unknown> {
         return requireWallet(walletId).sendTransaction(transaction);
+    },
+
+    // ---- jettons (kit-ios wallet jetton methods) --------------------------
+
+    async createTransferJettonTransaction(walletId: string, params: unknown): Promise<unknown> {
+        return requireWallet(walletId).createTransferJettonTransaction(params);
+    },
+
+    async getJettonBalance(walletId: string, jettonAddress: string): Promise<string> {
+        return String(await requireWallet(walletId).getJettonBalance(jettonAddress));
+    },
+
+    async getJettonWalletAddress(walletId: string, jettonAddress: string): Promise<string> {
+        return requireWallet(walletId).getJettonWalletAddress(jettonAddress);
+    },
+
+    async getJettons(walletId: string, params?: unknown): Promise<unknown> {
+        return requireWallet(walletId).getJettons(params);
+    },
+
+    // ---- NFTs (kit-ios wallet nft methods) --------------------------------
+
+    async createTransferNftTransaction(walletId: string, params: unknown): Promise<unknown> {
+        return requireWallet(walletId).createTransferNftTransaction(params);
+    },
+
+    async createTransferNftRawTransaction(walletId: string, params: unknown): Promise<unknown> {
+        return requireWallet(walletId).createTransferNftRawTransaction(params);
+    },
+
+    async getNfts(walletId: string, params: unknown = {}): Promise<unknown> {
+        return requireWallet(walletId).getNfts(params);
+    },
+
+    /** The NFT at an address, or null when the wallet does not hold it. */
+    async getNft(walletId: string, address: string): Promise<unknown> {
+        return (await requireWallet(walletId).getNft(address)) ?? null;
     },
 
     // ---- TON Connect (kit-ios names; events arrive as unsolicited updates) --
