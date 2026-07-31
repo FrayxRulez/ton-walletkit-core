@@ -61,6 +61,11 @@ if(TWK_BUILD_TESTS)
     target_link_libraries(twk_event_loop_smoke PRIVATE twk qjs)
     target_include_directories(twk_event_loop_smoke PRIVATE ${CMAKE_SOURCE_DIR}/src)
     add_test(NAME event_loop_smoke COMMAND twk_event_loop_smoke)
+
+    # C ABI sanity (send/receive correlation, timeout, ordering, churn).
+    add_executable(twk_client_smoke test/client_smoke.cpp)
+    target_link_libraries(twk_client_smoke PRIVATE twk)
+    add_test(NAME client_smoke COMMAND twk_client_smoke)
 endif()
 
 message(STATUS "ton-walletkit-core ${PROJECT_VERSION} configured (cli=${TWK_BUILD_CLI} tests=${TWK_BUILD_TESTS})")

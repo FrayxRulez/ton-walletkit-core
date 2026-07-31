@@ -3,6 +3,7 @@
 add_library(twk STATIC
     engine/js_runtime.cpp
     engine/event_loop.cpp
+    client.cpp
 )
 
 target_include_directories(twk
