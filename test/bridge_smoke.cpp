@@ -13,12 +13,12 @@ static bool contains(const char* s, const char* needle) {
 int main() {
     twk_client* c = twk_client_create(nullptr, nullptr);
 
-    twk_send(c, 42, "echo", "{\"n\":1e3,\"s\":\"hi\"}");
+    twk_send(c, 42, "echo", "[{\"n\":1e3,\"s\":\"hi\"}]"); // positional args: echo({n:1e3,s:'hi'})
 
     unsigned long long rid = 0;
     const char* out = twk_receive(c, 2.0, &rid);
 
-    bool ok = out && rid == 42 && contains(out, "\"method\":\"echo\"") &&
+    bool ok = out && rid == 42 && contains(out, "\"result\"") &&
               contains(out, "\"n\":1000") &&  // 1e3 normalized by JS JSON round-trip
               contains(out, "\"s\":\"hi\"");
     if (!ok) {

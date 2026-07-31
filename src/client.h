@@ -44,6 +44,10 @@ public:
     JsRuntime* js() const { return js_; }
     Shims& shims() const { return *shims_; }
 
+    // Called from the __twk_ready host global (worker thread) when the bundle has
+    // finished loading; flushes any calls queued before readiness.
+    void onJsReady();
+
 private:
     void onStart();
     void afterWork();
@@ -56,6 +60,16 @@ private:
     JsRuntime* js_ = nullptr;              // created/destroyed on the worker thread
     std::unique_ptr<Shims> shims_;         // ditto (worker thread lifetime)
     HostContext host_context_;             // set as the JS context opaque
+
+    // Calls received before the bundle signals readiness are queued here (worker
+    // thread only) and flushed by onJsReady().
+    bool js_ready_ = false;
+    struct PendingCall {
+        uint64_t request_id;
+        std::string method;
+        std::string params_json;
+    };
+    std::deque<PendingCall> pending_;
 
     std::mutex out_mutex_;
     std::condition_variable out_cv_;

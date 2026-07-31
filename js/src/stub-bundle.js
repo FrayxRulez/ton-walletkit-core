@@ -1,16 +1,22 @@
-// M0 stub bridge bundle.
-//
-// Registers walletkitBridge.handleNativeCall and echoes each call straight back
-// through the native transport (__twk_emit) as a {result} envelope, preserving
-// the request_id correlation. This exists only to prove the native<->JS round
-// trip in the walking skeleton; M1 replaces it with the real @ton/walletkit
-// bundle produced by esbuild.
+// M0/M1 stub bundle (kit-ios shape): defines globalThis.walletKit and signals
+// readiness, so the native-await transport can be exercised without the full
+// @ton/walletkit. Replaced by the real esbuild bundle in the integrate task.
 (function () {
   "use strict";
 
-  globalThis.walletkitBridge = {
-    handleNativeCall: function (method, params, requestId) {
-      __twk_emit({ result: { method: method, params: params ?? null } }, requestId);
+  globalThis.walletKit = {
+    // Echo the (single) argument back — used to prove the native<->JS round trip
+    // and request_id correlation. Async so it exercises the promise-await path.
+    async echo(value) {
+      return value ?? null;
+    },
+    // Always rejects — exercises the {error} envelope.
+    async fail() {
+      throw new Error("boom");
     },
   };
+
+  if (typeof globalThis.__twk_ready === "function") {
+    globalThis.__twk_ready();
+  }
 })();

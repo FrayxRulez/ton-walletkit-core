@@ -21,7 +21,7 @@ static bool test_create_destroy() {
 static bool test_send_no_receive() {
     for (int i = 0; i < 200; ++i) {
         twk_client* c = twk_client_create(nullptr, nullptr);
-        twk_send(c, static_cast<unsigned long long>(i), "noop", "null");
+        twk_send(c, static_cast<unsigned long long>(i), "echo", "null");
         twk_client_destroy(c);
     }
     return true;

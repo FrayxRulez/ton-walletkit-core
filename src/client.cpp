@@ -41,13 +41,17 @@ void Client::onStart() {
     // Host globals (console/timers/crypto/Pbkdf2) must exist before the bundle runs.
     shims_->install();
 
-    // Install the transport (__twk_emit) and evaluate the bundle. With the M0 stub
-    // this cannot fail; M1+ surfaces load errors.
+    // Install the transport (__twk_ready) and evaluate the bundle.
     std::string error;
     if (!bridge::install(*js_, &error)) {
-        // Nothing to route the failure to yet (no request in flight). Left as a
-        // no-op for the M0 stub; the load-error path gets wired with the real bundle.
+        // Nothing to route the failure to yet (no request in flight). The load-error
+        // path is wired with the real bundle.
     }
+
+    // The bundle bootstraps asynchronously (dynamic imports resolve via the job
+    // queue). Pump it so walletKit is constructed and __twk_ready fires before the
+    // first request is dispatched.
+    afterWork();
 }
 
 void Client::afterWork() {
@@ -73,8 +77,22 @@ void Client::send(uint64_t request_id, std::string method, std::string params_js
 }
 
 void Client::handleCall(uint64_t request_id, const std::string& method, const std::string& params_json) {
-    // native -> JS -> native: walletkitBridge.handleNativeCall(...) -> __twk_emit(...).
-    bridge::dispatch(*js_, *this, request_id, method, params_json);
+    // native -> JS: walletKit[method](...args), awaited natively. Queue until the
+    // bundle signals readiness.
+    if (js_ready_) {
+        bridge::dispatch(*js_, *this, request_id, method, params_json);
+    } else {
+        pending_.push_back({request_id, method, params_json});
+    }
+}
+
+void Client::onJsReady() {
+    js_ready_ = true;
+    std::deque<PendingCall> pending = std::move(pending_);
+    pending_.clear();
+    for (auto& call : pending) {
+        bridge::dispatch(*js_, *this, call.request_id, call.method, call.params_json);
+    }
 }
 
 void Client::emit(uint64_t request_id, std::string json) {
