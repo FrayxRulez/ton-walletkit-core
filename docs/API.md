@@ -21,31 +21,60 @@ Bindings rebuild the object model on top (`wallet.getBalance()` → `getBalance(
 | `createMnemonic` | `[]` | `string[]` (24 words) |
 | `createSignerFromMnemonic` | `[mnemonic, type?]` | `{signerId, publicKey}` |
 | `createSignerFromPrivateKey` | `[secretKeyHex]` | `{signerId, publicKey}` |
-| `createV5R1WalletAdapter` | `[signerId, params?]` | `{adapterId, address, chainId}` |
-| `createV4R2WalletAdapter` | `[signerId, params?]` | `{adapterId, address, chainId}` |
+| `sign` | `[signerId, bytes[]]` | hex signature |
+| `createV5R1WalletAdapter` | `[signerId, params?]` | `{adapterId, address, publicKey, walletId, network, chainId}` |
+| `createV4R2WalletAdapter` | `[signerId, params?]` | same |
 | `addWallet` | `[adapterId]` | wallet info |
 | `getWallets` / `getWallet` | `[]` / `[walletId]` | wallet info |
 | `removeWallet` / `clearWallets` | `[walletId]` / `[]` | `{ok:true}` |
 | `release` | `[id]` | `{released}` — signers/adapters are **not** GC'd; release them |
 
-`initWalletKit` config: `{networks:[{chainId, endpoint?, apiKey?, timeout?}], storagePrefix?, dev?}`.
-`createV*WalletAdapter` params: `{chainId?, workchain?, walletId?}` — here `walletId` is the TON
-**subwallet id** (default 0), *not* the kit's wallet id. Adapters need the network's API client,
-so `initWalletKit` must run first.
+`initWalletKit` config:
+`{networks:[{chainId, endpoint?, apiKey?, timeout?}], walletManifest?, deviceInfo?, bridge?, dev?, storagePrefix?}`.
+`createV*WalletAdapter` params: `{network?:{chainId}, chainId?, domain?, workchain?, walletId?}` — here
+`walletId` is the TON **subwallet id** (default 0), *not* the kit's wallet id. Adapters need the
+network's API client, so `initWalletKit` must run first.
+
+## Adapter operations (adapter id **or** walletId)
+
+A registered wallet is also an adapter, so these take either id — as in kit-ios, where
+`TONWallet` conforms to `TONWalletAdapterProtocol`.
+
+| method | args | returns |
+|---|---|---|
+| `getStateInit` | `[id]` | base64 BOC |
+| `getSignedSendTransaction` | `[id, transaction, {fakeSignature?}]` | base64 BOC |
+| `getSignedSignMessage` | `[id, transaction, options?]` | base64 BOC |
+| `getSignedSignData` | `[id, preparedSignData, options?]` | hex signature |
+| `getSignedTonProof` | `[id, proofMessage, options?]` | hex signature |
+| `getSupportedFeatures` | `[id]` | feature list, or null |
 
 ## Wallet operations (walletId first)
 
 | method | args | returns |
 |---|---|---|
-| `getBalance` | `[walletId]` | `{balance}` — nanotons |
+| `getBalance` | `[walletId]` | nanotons, as a string |
 | `createTransferTonTransaction` | `[walletId, params]` | `{messages:[…], fromAddress}` |
-| `getTransactionPreview` | `[walletId, transaction, options?]` | preview |
-| `getSignedSendTransaction` | `[walletId, transaction, {fakeSignature?}]` | `{boc}` |
+| `createTransferMultiTonTransaction` | `[walletId, params[]]` | one transaction, several transfers |
+| `getTransactionPreview` | `[walletId, transaction, options?]` | emulated preview |
 | `sendTransaction` | `[walletId, transaction]` | `{boc, normalizedBoc, normalizedHash}` — **spends funds** |
+| `createTransferJettonTransaction` | `[walletId, params]` | transaction |
+| `getJettonBalance` | `[walletId, jettonAddress]` | amount, as a string |
+| `getJettonWalletAddress` | `[walletId, jettonAddress]` | address |
+| `getJettons` | `[walletId, params?]` | `{addressBook, jettons}` |
+| `createTransferNftTransaction` | `[walletId, params]` | transaction |
+| `createTransferNftRawTransaction` | `[walletId, params]` | transaction |
+| `getNfts` | `[walletId, params?]` | `{addressBook, nfts}` |
+| `getNft` | `[walletId, address]` | NFT, or null |
 | `getAddressBalance` | `[address, chainId?]` | `{address, balance}` — no wallet needed |
+| `getAddressState` | `[address, chainId?]` | account state — no wallet needed |
+| `getAddressTransactions` | `[address, chainId?, limit?, offset?]` | history — see the note below |
 
 `createTransferTonTransaction` params (walletkit's own field names):
 `{recipientAddress, transferAmount, comment? | payload?, stateInit?, extraCurrency?, mode?}`.
+
+Methods that return a single value return it **bare**, as walletkit does — `getBalance` answers
+`{"result":"250000000"}`, not `{"result":{"balance":"250000000"}}`.
 
 ## TON Connect
 
@@ -81,6 +110,9 @@ Two things are required and are not obvious from the errors:
 - `publicKey` is **0x-prefixed hex**; `network` is `{chainId}`; testnet is `"-3"`, mainnet `"-239"`.
 - `createSignerFromMnemonic` accepts a **string or a word array**.
 - `getVersion()` is not implemented on the wallet proxy (returns undefined).
+- `getAddressTransactions` currently throws inside walletkit's own `toTransactionsResponse`
+  ("Invalid hash: data is required") for well-formed toncenter replies. Upstream limitation,
+  not a transport problem.
 
 ## Persistence — important
 
@@ -98,3 +130,9 @@ keys live there; the reference host's plaintext file is **test-only**.
 `getSignedSendTransaction` with `{"fakeSignature": true}` produces a correctly shaped but
 unusable signature: right for fee estimation, and what the tests use so no test can move funds.
 Only `sendTransaction` broadcasts.
+
+## Bindings
+
+The C# binding (`bindings/csharp`) is the reference consumer: it mirrors **kit-ios method for
+method** on top of this API, with walletkit's own **generated DTOs** as parameters and return
+types. See `scripts/generate-api/README.md` for how those are produced.

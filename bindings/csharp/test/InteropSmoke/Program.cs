@@ -135,7 +135,7 @@ using (var kit = new TonWalletKit(new FakeHost(), configuration))
           transfer?.Messages?[0]?.Address);
     Check("facade: transfer carries the sender", transfer.FromAddress == wallet.Address, transfer.FromAddress);
 
-    var boc = await wallet.SignedSendTransactionAsync(transfer, new TONSignedSendTransactionOptions(true));
+    var boc = await wallet.SignedSendTransactionAsync(transfer, new TONSignedSendTransactionOptions(fakeSignature: true));
     Check("facade: sign with a fake signature", boc != null && boc.StartsWith("te6"), boc);
 
     var stateInit = await wallet.StateInitAsync();
@@ -146,8 +146,30 @@ using (var kit = new TonWalletKit(new FakeHost(), configuration))
     Check("facade: address state -> TONAccountState",
           state != null && state.RawBalance == "110576459116021734", state?.Status.ToString());
 
+    // The one-step path an app actually uses on first run.
+    var created = await kit.CreateWalletAsync(new TonV5R1WalletParameters(testnet));
+    Check("facade: createWallet -> mnemonic + adapter",
+          created.Mnemonic.Value.Count == 24 && created.WalletAdapter.Address != null,
+          created.WalletAdapter.Address);
+
+    var second = await kit.AddAsync(created.WalletAdapter);
+    Check("facade: a second wallet is its own wallet", second.Id != wallet.Id, second.Address);
+
+    // History deserializes into a DTO when walletkit's own parser accepts the
+    // reply; today it usually does not (see AddressTransactionsAsync remarks).
+    try
+    {
+        var history = await kit.AddressTransactionsAsync(wallet.Address, limit: 5);
+        Check("facade: history -> TONTransactionsResponse", history != null,
+              $"{history?.Transactions?.Count ?? 0} transaction(s)");
+    }
+    catch (WalletKitException ex)
+    {
+        Console.WriteLine("skip: history (upstream parser) -> " + Truncate(ex.Message));
+    }
+
     var wallets = await kit.WalletsAsync();
-    Check("facade: wallet is listed", wallets.Count == 1 && wallets[0].Id == wallet.Id, $"{wallets.Count} wallet(s)");
+    Check("facade: wallets are listed", wallets.Count == 2, $"{wallets.Count} wallet(s)");
 
     // Restoring the same mnemonic must yield the same address — that is what
     // makes a restored wallet the same wallet.
@@ -156,7 +178,7 @@ using (var kit = new TonWalletKit(new FakeHost(), configuration))
     Check("facade: restore is deterministic", again.Address == wallet.Address, again.Address);
 
     await kit.RemoveAsync(wallet.Id);
-    Check("facade: remove", (await kit.WalletsAsync()).Count == 0);
+    Check("facade: remove", (await kit.WalletsAsync()).Count == 1);
 }
 
 Console.WriteLine(failures == 0 ? "PASS" : "FAILED");
