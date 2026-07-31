@@ -24,12 +24,12 @@ using Ton.WalletKit.Api.Client;
 namespace Ton.WalletKit.Api.Model
 {
     /// <summary>
-    /// TONTONConnectSession
+    /// TONConnectSession
     /// </summary>
-    public partial class TONTONConnectSession : IValidatableObject
+    public partial class TONConnectSession : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="TONTONConnectSession" /> class.
+        /// Initializes a new instance of the <see cref="TONConnectSession" /> class.
         /// </summary>
         /// <param name="createdAt">createdAt</param>
         /// <param name="domain">domain</param>
@@ -46,7 +46,7 @@ namespace Ton.WalletKit.Api.Model
         /// <param name="dAppUrl">Main website URL of the dApp</param>
         /// <param name="isJsBridge">isJsBridge</param>
         [JsonConstructor]
-        public TONTONConnectSession(string createdAt, string domain, string lastActivityAt, string privateKey, string publicKey, decimal schemaVersion, string sessionId, string walletAddress, string walletId, Option<string> dAppDescription = default, Option<string> dAppIconUrl = default, Option<string> dAppName = default, Option<string> dAppUrl = default, Option<bool?> isJsBridge = default)
+        public TONConnectSession(string createdAt, string domain, string lastActivityAt, string privateKey, string publicKey, decimal schemaVersion, string sessionId, string walletAddress, string walletId, Option<string> dAppDescription = default, Option<string> dAppIconUrl = default, Option<string> dAppName = default, Option<string> dAppUrl = default, Option<bool?> isJsBridge = default)
         {
             CreatedAt = createdAt;
             Domain = domain;
@@ -199,7 +199,7 @@ namespace Ton.WalletKit.Api.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class TONTONConnectSession {\n");
+            sb.Append("class TONConnectSession {\n");
             sb.Append("  CreatedAt: ").Append(CreatedAt).Append("\n");
             sb.Append("  Domain: ").Append(Domain).Append("\n");
             sb.Append("  LastActivityAt: ").Append(LastActivityAt).Append("\n");
@@ -230,19 +230,19 @@ namespace Ton.WalletKit.Api.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="TONTONConnectSession" />
+    /// A Json converter for type <see cref="TONConnectSession" />
     /// </summary>
-    public class TONTONConnectSessionJsonConverter : JsonConverter<TONTONConnectSession>
+    public class TONConnectSessionJsonConverter : JsonConverter<TONConnectSession>
     {
         /// <summary>
-        /// Deserializes json to <see cref="TONTONConnectSession" />
+        /// Deserializes json to <see cref="TONConnectSession" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override TONTONConnectSession Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override TONConnectSession Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -332,169 +332,169 @@ namespace Ton.WalletKit.Api.Model
             }
 
             if (!createdAt.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(createdAt));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(createdAt));
 
             if (!domain.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(domain));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(domain));
 
             if (!lastActivityAt.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(lastActivityAt));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(lastActivityAt));
 
             if (!privateKey.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(privateKey));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(privateKey));
 
             if (!publicKey.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(publicKey));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(publicKey));
 
             if (!schemaVersion.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(schemaVersion));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(schemaVersion));
 
             if (!sessionId.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(sessionId));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(sessionId));
 
             if (!walletAddress.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(walletAddress));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(walletAddress));
 
             if (!walletId.IsSet)
-                throw new ArgumentException("Property is required for class TONTONConnectSession.", nameof(walletId));
+                throw new ArgumentException("Property is required for class TONConnectSession.", nameof(walletId));
 
             if (createdAt.IsSet && createdAt.Value == null)
-                throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class TONConnectSession.");
 
             if (domain.IsSet && domain.Value == null)
-                throw new ArgumentNullException(nameof(domain), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(domain), "Property is not nullable for class TONConnectSession.");
 
             if (lastActivityAt.IsSet && lastActivityAt.Value == null)
-                throw new ArgumentNullException(nameof(lastActivityAt), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(lastActivityAt), "Property is not nullable for class TONConnectSession.");
 
             if (privateKey.IsSet && privateKey.Value == null)
-                throw new ArgumentNullException(nameof(privateKey), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(privateKey), "Property is not nullable for class TONConnectSession.");
 
             if (publicKey.IsSet && publicKey.Value == null)
-                throw new ArgumentNullException(nameof(publicKey), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(publicKey), "Property is not nullable for class TONConnectSession.");
 
             if (schemaVersion.IsSet && schemaVersion.Value == null)
-                throw new ArgumentNullException(nameof(schemaVersion), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(schemaVersion), "Property is not nullable for class TONConnectSession.");
 
             if (sessionId.IsSet && sessionId.Value == null)
-                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(sessionId), "Property is not nullable for class TONConnectSession.");
 
             if (walletAddress.IsSet && walletAddress.Value == null)
-                throw new ArgumentNullException(nameof(walletAddress), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(walletAddress), "Property is not nullable for class TONConnectSession.");
 
             if (walletId.IsSet && walletId.Value == null)
-                throw new ArgumentNullException(nameof(walletId), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(walletId), "Property is not nullable for class TONConnectSession.");
 
             if (dAppDescription.IsSet && dAppDescription.Value == null)
-                throw new ArgumentNullException(nameof(dAppDescription), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(dAppDescription), "Property is not nullable for class TONConnectSession.");
 
             if (dAppIconUrl.IsSet && dAppIconUrl.Value == null)
-                throw new ArgumentNullException(nameof(dAppIconUrl), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(dAppIconUrl), "Property is not nullable for class TONConnectSession.");
 
             if (dAppName.IsSet && dAppName.Value == null)
-                throw new ArgumentNullException(nameof(dAppName), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(dAppName), "Property is not nullable for class TONConnectSession.");
 
             if (dAppUrl.IsSet && dAppUrl.Value == null)
-                throw new ArgumentNullException(nameof(dAppUrl), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(dAppUrl), "Property is not nullable for class TONConnectSession.");
 
             if (isJsBridge.IsSet && isJsBridge.Value == null)
-                throw new ArgumentNullException(nameof(isJsBridge), "Property is not nullable for class TONTONConnectSession.");
+                throw new ArgumentNullException(nameof(isJsBridge), "Property is not nullable for class TONConnectSession.");
 
-            return new TONTONConnectSession(createdAt.Value, domain.Value, lastActivityAt.Value, privateKey.Value, publicKey.Value, schemaVersion.Value.Value, sessionId.Value, walletAddress.Value, walletId.Value, dAppDescription, dAppIconUrl, dAppName, dAppUrl, isJsBridge);
+            return new TONConnectSession(createdAt.Value, domain.Value, lastActivityAt.Value, privateKey.Value, publicKey.Value, schemaVersion.Value.Value, sessionId.Value, walletAddress.Value, walletId.Value, dAppDescription, dAppIconUrl, dAppName, dAppUrl, isJsBridge);
         }
 
         /// <summary>
-        /// Serializes a <see cref="TONTONConnectSession" />
+        /// Serializes a <see cref="TONConnectSession" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="tONTONConnectSession"></param>
+        /// <param name="tONConnectSession"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, TONTONConnectSession tONTONConnectSession, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, TONConnectSession tONConnectSession, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, tONTONConnectSession, jsonSerializerOptions);
+            WriteProperties(writer, tONConnectSession, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="TONTONConnectSession" />
+        /// Serializes the properties of <see cref="TONConnectSession" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="tONTONConnectSession"></param>
+        /// <param name="tONConnectSession"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, TONTONConnectSession tONTONConnectSession, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, TONConnectSession tONConnectSession, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (tONTONConnectSession.CreatedAt == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.CreatedAt), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.CreatedAt == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.CreatedAt), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.Domain == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.Domain), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.Domain == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.Domain), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.LastActivityAt == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.LastActivityAt), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.LastActivityAt == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.LastActivityAt), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.PrivateKey == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.PrivateKey), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.PrivateKey == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.PrivateKey), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.PublicKey == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.PublicKey), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.PublicKey == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.PublicKey), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.SessionId == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.SessionId), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.SessionId == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.SessionId), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.WalletAddress == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.WalletAddress), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.WalletAddress == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.WalletAddress), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.WalletId == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.WalletId), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.WalletId == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.WalletId), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.DAppDescriptionOption.IsSet && tONTONConnectSession.DAppDescription == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.DAppDescription), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.DAppDescriptionOption.IsSet && tONConnectSession.DAppDescription == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.DAppDescription), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.DAppIconUrlOption.IsSet && tONTONConnectSession.DAppIconUrl == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.DAppIconUrl), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.DAppIconUrlOption.IsSet && tONConnectSession.DAppIconUrl == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.DAppIconUrl), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.DAppNameOption.IsSet && tONTONConnectSession.DAppName == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.DAppName), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.DAppNameOption.IsSet && tONConnectSession.DAppName == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.DAppName), "Property is required for class TONConnectSession.");
 
-            if (tONTONConnectSession.DAppUrlOption.IsSet && tONTONConnectSession.DAppUrl == null)
-                throw new ArgumentNullException(nameof(tONTONConnectSession.DAppUrl), "Property is required for class TONTONConnectSession.");
+            if (tONConnectSession.DAppUrlOption.IsSet && tONConnectSession.DAppUrl == null)
+                throw new ArgumentNullException(nameof(tONConnectSession.DAppUrl), "Property is required for class TONConnectSession.");
 
-            writer.WriteString("createdAt", tONTONConnectSession.CreatedAt);
+            writer.WriteString("createdAt", tONConnectSession.CreatedAt);
 
-            writer.WriteString("domain", tONTONConnectSession.Domain);
+            writer.WriteString("domain", tONConnectSession.Domain);
 
-            writer.WriteString("lastActivityAt", tONTONConnectSession.LastActivityAt);
+            writer.WriteString("lastActivityAt", tONConnectSession.LastActivityAt);
 
-            writer.WriteString("privateKey", tONTONConnectSession.PrivateKey);
+            writer.WriteString("privateKey", tONConnectSession.PrivateKey);
 
-            writer.WriteString("publicKey", tONTONConnectSession.PublicKey);
+            writer.WriteString("publicKey", tONConnectSession.PublicKey);
 
-            writer.WriteNumber("schemaVersion", tONTONConnectSession.SchemaVersion);
+            writer.WriteNumber("schemaVersion", tONConnectSession.SchemaVersion);
 
-            writer.WriteString("sessionId", tONTONConnectSession.SessionId);
+            writer.WriteString("sessionId", tONConnectSession.SessionId);
 
-            writer.WriteString("walletAddress", tONTONConnectSession.WalletAddress);
+            writer.WriteString("walletAddress", tONConnectSession.WalletAddress);
 
-            writer.WriteString("walletId", tONTONConnectSession.WalletId);
+            writer.WriteString("walletId", tONConnectSession.WalletId);
 
-            if (tONTONConnectSession.DAppDescriptionOption.IsSet)
-                writer.WriteString("dAppDescription", tONTONConnectSession.DAppDescription);
+            if (tONConnectSession.DAppDescriptionOption.IsSet)
+                writer.WriteString("dAppDescription", tONConnectSession.DAppDescription);
 
-            if (tONTONConnectSession.DAppIconUrlOption.IsSet)
-                writer.WriteString("dAppIconUrl", tONTONConnectSession.DAppIconUrl);
+            if (tONConnectSession.DAppIconUrlOption.IsSet)
+                writer.WriteString("dAppIconUrl", tONConnectSession.DAppIconUrl);
 
-            if (tONTONConnectSession.DAppNameOption.IsSet)
-                writer.WriteString("dAppName", tONTONConnectSession.DAppName);
+            if (tONConnectSession.DAppNameOption.IsSet)
+                writer.WriteString("dAppName", tONConnectSession.DAppName);
 
-            if (tONTONConnectSession.DAppUrlOption.IsSet)
-                writer.WriteString("dAppUrl", tONTONConnectSession.DAppUrl);
+            if (tONConnectSession.DAppUrlOption.IsSet)
+                writer.WriteString("dAppUrl", tONConnectSession.DAppUrl);
 
-            if (tONTONConnectSession.IsJsBridgeOption.IsSet)
-                writer.WriteBoolean("isJsBridge", tONTONConnectSession.IsJsBridgeOption.Value.Value);
+            if (tONConnectSession.IsJsBridgeOption.IsSet)
+                writer.WriteBoolean("isJsBridge", tONConnectSession.IsJsBridgeOption.Value.Value);
         }
     }
 }

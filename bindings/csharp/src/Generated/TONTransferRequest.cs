@@ -26,10 +26,10 @@ namespace Ton.WalletKit.Api.Model
     /// <summary>
     /// Request parameters for transferring TON to another address.
     /// </summary>
-    public partial class TONTONTransferRequest : IValidatableObject
+    public partial class TONTransferRequest : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="TONTONTransferRequest" /> class.
+        /// Initializes a new instance of the <see cref="TONTransferRequest" /> class.
         /// </summary>
         /// <param name="recipientAddress">User-friendly TON address representation (e.g., \&quot;EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2\&quot;)</param>
         /// <param name="transferAmount">Token amount represented as a string to preserve precision. For TON, this is typically in nanotons (1 TON &#x3D; 10^9 nanotons).</param>
@@ -39,7 +39,7 @@ namespace Ton.WalletKit.Api.Model
         /// <param name="payload">Base64-encoded string representation</param>
         /// <param name="stateInit">Base64-encoded string representation</param>
         [JsonConstructor]
-        public TONTONTransferRequest(string recipientAddress, string transferAmount, Option<string> comment = default, Option<Dictionary<string, string>> extraCurrency = default, Option<TONSendMode> mode = default, Option<string> payload = default, Option<string> stateInit = default)
+        public TONTransferRequest(string recipientAddress, string transferAmount, Option<string> comment = default, Option<Dictionary<string, string>> extraCurrency = default, Option<TONSendMode> mode = default, Option<string> payload = default, Option<string> stateInit = default)
         {
             RecipientAddress = recipientAddress;
             TransferAmount = transferAmount;
@@ -143,7 +143,7 @@ namespace Ton.WalletKit.Api.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class TONTONTransferRequest {\n");
+            sb.Append("class TONTransferRequest {\n");
             sb.Append("  RecipientAddress: ").Append(RecipientAddress).Append("\n");
             sb.Append("  TransferAmount: ").Append(TransferAmount).Append("\n");
             sb.Append("  Comment: ").Append(Comment).Append("\n");
@@ -167,19 +167,19 @@ namespace Ton.WalletKit.Api.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="TONTONTransferRequest" />
+    /// A Json converter for type <see cref="TONTransferRequest" />
     /// </summary>
-    public class TONTONTransferRequestJsonConverter : JsonConverter<TONTONTransferRequest>
+    public class TONTransferRequestJsonConverter : JsonConverter<TONTransferRequest>
     {
         /// <summary>
-        /// Deserializes json to <see cref="TONTONTransferRequest" />
+        /// Deserializes json to <see cref="TONTransferRequest" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override TONTONTransferRequest Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override TONTransferRequest Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -241,102 +241,102 @@ namespace Ton.WalletKit.Api.Model
             }
 
             if (!recipientAddress.IsSet)
-                throw new ArgumentException("Property is required for class TONTONTransferRequest.", nameof(recipientAddress));
+                throw new ArgumentException("Property is required for class TONTransferRequest.", nameof(recipientAddress));
 
             if (!transferAmount.IsSet)
-                throw new ArgumentException("Property is required for class TONTONTransferRequest.", nameof(transferAmount));
+                throw new ArgumentException("Property is required for class TONTransferRequest.", nameof(transferAmount));
 
             if (recipientAddress.IsSet && recipientAddress.Value == null)
-                throw new ArgumentNullException(nameof(recipientAddress), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(recipientAddress), "Property is not nullable for class TONTransferRequest.");
 
             if (transferAmount.IsSet && transferAmount.Value == null)
-                throw new ArgumentNullException(nameof(transferAmount), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(transferAmount), "Property is not nullable for class TONTransferRequest.");
 
             if (comment.IsSet && comment.Value == null)
-                throw new ArgumentNullException(nameof(comment), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(comment), "Property is not nullable for class TONTransferRequest.");
 
             if (extraCurrency.IsSet && extraCurrency.Value == null)
-                throw new ArgumentNullException(nameof(extraCurrency), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(extraCurrency), "Property is not nullable for class TONTransferRequest.");
 
             if (mode.IsSet && mode.Value == null)
-                throw new ArgumentNullException(nameof(mode), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(mode), "Property is not nullable for class TONTransferRequest.");
 
             if (payload.IsSet && payload.Value == null)
-                throw new ArgumentNullException(nameof(payload), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(payload), "Property is not nullable for class TONTransferRequest.");
 
             if (stateInit.IsSet && stateInit.Value == null)
-                throw new ArgumentNullException(nameof(stateInit), "Property is not nullable for class TONTONTransferRequest.");
+                throw new ArgumentNullException(nameof(stateInit), "Property is not nullable for class TONTransferRequest.");
 
-            return new TONTONTransferRequest(recipientAddress.Value, transferAmount.Value, comment, extraCurrency, mode, payload, stateInit);
+            return new TONTransferRequest(recipientAddress.Value, transferAmount.Value, comment, extraCurrency, mode, payload, stateInit);
         }
 
         /// <summary>
-        /// Serializes a <see cref="TONTONTransferRequest" />
+        /// Serializes a <see cref="TONTransferRequest" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="tONTONTransferRequest"></param>
+        /// <param name="tONTransferRequest"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, TONTONTransferRequest tONTONTransferRequest, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, TONTransferRequest tONTransferRequest, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, tONTONTransferRequest, jsonSerializerOptions);
+            WriteProperties(writer, tONTransferRequest, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="TONTONTransferRequest" />
+        /// Serializes the properties of <see cref="TONTransferRequest" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="tONTONTransferRequest"></param>
+        /// <param name="tONTransferRequest"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, TONTONTransferRequest tONTONTransferRequest, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, TONTransferRequest tONTransferRequest, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (tONTONTransferRequest.RecipientAddress == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.RecipientAddress), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.RecipientAddress == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.RecipientAddress), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.TransferAmount == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.TransferAmount), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.TransferAmount == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.TransferAmount), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.CommentOption.IsSet && tONTONTransferRequest.Comment == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.Comment), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.CommentOption.IsSet && tONTransferRequest.Comment == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.Comment), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.ExtraCurrencyOption.IsSet && tONTONTransferRequest.ExtraCurrency == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.ExtraCurrency), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.ExtraCurrencyOption.IsSet && tONTransferRequest.ExtraCurrency == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.ExtraCurrency), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.ModeOption.IsSet && tONTONTransferRequest.Mode == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.Mode), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.ModeOption.IsSet && tONTransferRequest.Mode == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.Mode), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.PayloadOption.IsSet && tONTONTransferRequest.Payload == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.Payload), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.PayloadOption.IsSet && tONTransferRequest.Payload == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.Payload), "Property is required for class TONTransferRequest.");
 
-            if (tONTONTransferRequest.StateInitOption.IsSet && tONTONTransferRequest.StateInit == null)
-                throw new ArgumentNullException(nameof(tONTONTransferRequest.StateInit), "Property is required for class TONTONTransferRequest.");
+            if (tONTransferRequest.StateInitOption.IsSet && tONTransferRequest.StateInit == null)
+                throw new ArgumentNullException(nameof(tONTransferRequest.StateInit), "Property is required for class TONTransferRequest.");
 
-            writer.WriteString("recipientAddress", tONTONTransferRequest.RecipientAddress);
+            writer.WriteString("recipientAddress", tONTransferRequest.RecipientAddress);
 
-            writer.WriteString("transferAmount", tONTONTransferRequest.TransferAmount);
+            writer.WriteString("transferAmount", tONTransferRequest.TransferAmount);
 
-            if (tONTONTransferRequest.CommentOption.IsSet)
-                writer.WriteString("comment", tONTONTransferRequest.Comment);
+            if (tONTransferRequest.CommentOption.IsSet)
+                writer.WriteString("comment", tONTransferRequest.Comment);
 
-            if (tONTONTransferRequest.ExtraCurrencyOption.IsSet)
+            if (tONTransferRequest.ExtraCurrencyOption.IsSet)
             {
                 writer.WritePropertyName("extraCurrency");
-                JsonSerializer.Serialize(writer, tONTONTransferRequest.ExtraCurrency, jsonSerializerOptions);
+                JsonSerializer.Serialize(writer, tONTransferRequest.ExtraCurrency, jsonSerializerOptions);
             }
-            if (tONTONTransferRequest.ModeOption.IsSet)
+            if (tONTransferRequest.ModeOption.IsSet)
             {
                 writer.WritePropertyName("mode");
-                JsonSerializer.Serialize(writer, tONTONTransferRequest.Mode, jsonSerializerOptions);
+                JsonSerializer.Serialize(writer, tONTransferRequest.Mode, jsonSerializerOptions);
             }
-            if (tONTONTransferRequest.PayloadOption.IsSet)
-                writer.WriteString("payload", tONTONTransferRequest.Payload);
+            if (tONTransferRequest.PayloadOption.IsSet)
+                writer.WriteString("payload", tONTransferRequest.Payload);
 
-            if (tONTONTransferRequest.StateInitOption.IsSet)
-                writer.WriteString("stateInit", tONTONTransferRequest.StateInit);
+            if (tONTransferRequest.StateInitOption.IsSet)
+                writer.WriteString("stateInit", tONTransferRequest.StateInit);
         }
     }
 }

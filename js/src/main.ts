@@ -71,7 +71,11 @@ function tryCall(target: any, method: string): unknown {
 }
 
 interface AdapterParams {
+    /** kit-ios wallet parameters carry a network object; chainId is the short form. */
+    network?: { chainId?: string };
     chainId?: string;
+    /** V5R1 signature domain. */
+    domain?: unknown;
     /** TON subwallet id (default 0) — not the kit's walletId. */
     walletId?: number;
     workchain?: number;
@@ -96,10 +100,12 @@ async function createAdapter(
     params: AdapterParams,
 ): Promise<AdapterInfo> {
     const signer = resolve<any>(signerId, 'signer');
-    const network = params.chainId ? Network.custom(params.chainId) : Network.testnet();
+    const chainId = params.network?.chainId ?? params.chainId;
+    const network = chainId ? Network.custom(chainId) : Network.testnet();
     const adapter = await Adapter.create(signer, {
         client: requireKit().getApiClient(network),
         network,
+        domain: params.domain,
         walletId: params.walletId,
         workchain: params.workchain,
     });
@@ -303,8 +309,11 @@ interface InitConfig {
         return { signerId: retain('signer', signer), publicKey: signer.publicKey };
     },
 
-    async createSignerFromPrivateKey(secretKey: string): Promise<{ signerId: string; publicKey: string }> {
-        const signer = await Signer.fromPrivateKey(secretKey);
+    /** `secretKey` is hex, or the raw bytes as an array (JSON has no binary form). */
+    async createSignerFromPrivateKey(secretKey: string | number[]): Promise<{ signerId: string; publicKey: string }> {
+        const signer = await Signer.fromPrivateKey(
+            typeof secretKey === 'string' ? secretKey : Uint8Array.from(secretKey),
+        );
         return { signerId: retain('signer', signer), publicKey: signer.publicKey };
     },
 
@@ -379,17 +388,17 @@ interface InitConfig {
 
     /** Signs a transaction as a TON Connect signMessage response. */
     async getSignedSignMessage(id: string, transaction: unknown, options?: unknown): Promise<string> {
-        return requireAdapter(id).getSignedSignMessage(transaction, options);
+        return requireAdapter(id).getSignedSignMessage(transaction, options ?? undefined);
     },
 
     /** Signs prepared sign-data; returns a hex signature. */
     async getSignedSignData(id: string, input: unknown, options?: unknown): Promise<string> {
-        return requireAdapter(id).getSignedSignData(input, options);
+        return requireAdapter(id).getSignedSignData(input, options ?? undefined);
     },
 
     /** Signs a ton_proof message; returns a hex signature. */
     async getSignedTonProof(id: string, input: unknown, options?: unknown): Promise<string> {
-        return requireAdapter(id).getSignedTonProof(input, options);
+        return requireAdapter(id).getSignedTonProof(input, options ?? undefined);
     },
 
     /** TON Connect features this adapter supports, or null. */
@@ -420,7 +429,7 @@ interface InitConfig {
 
     /** Fee/effect preview for a built transaction. */
     async getTransactionPreview(walletId: string, transaction: unknown, options?: unknown): Promise<unknown> {
-        return requireWallet(walletId).getTransactionPreview(transaction, options);
+        return requireWallet(walletId).getTransactionPreview(transaction, options ?? undefined);
     },
 
     /** Signs and broadcasts. This spends real funds — never called by tests. */
@@ -443,7 +452,7 @@ interface InitConfig {
     },
 
     async getJettons(walletId: string, params?: unknown): Promise<unknown> {
-        return requireWallet(walletId).getJettons(params);
+        return requireWallet(walletId).getJettons(params ?? undefined);
     },
 
     // ---- NFTs (kit-ios wallet nft methods) --------------------------------
@@ -456,8 +465,8 @@ interface InitConfig {
         return requireWallet(walletId).createTransferNftRawTransaction(params);
     },
 
-    async getNfts(walletId: string, params: unknown = {}): Promise<unknown> {
-        return requireWallet(walletId).getNfts(params);
+    async getNfts(walletId: string, params?: unknown): Promise<unknown> {
+        return requireWallet(walletId).getNfts(params ?? {});
     },
 
     /** The NFT at an address, or null when the wallet does not hold it. */

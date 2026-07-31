@@ -1,9 +1,12 @@
 // Drives the C# binding against a real twk.dll: P/Invoke marshalling, the receive
-// loop, request/response correlation, error faulting, and unsolicited events.
+// loop, request/response correlation, error faulting, unsolicited events — and
+// the typed facade, where every payload is a generated DTO.
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Ton.WalletKit;
+using Ton.WalletKit.Api.Model;
 
 int failures = 0;
 void Check(string name, bool ok, string detail = null)
@@ -76,30 +79,84 @@ await client.SendAsync("storageSet", "[\"k\",\"v\"]");
 var got = await client.SendAsync("storageGet", "[\"k\"]");
 Check("storage delegate round trip", got != null && got.Contains("\"value\":\"v\""), got);
 
-// 8. The typed facade: the object model kit-ios exposes, over the id-based ABI.
-using (var kit = new TonWalletKit(new FakeHost()))
+// 8. The typed facade: kit-ios's object model, carrying generated DTOs.
+var testnet = new TONNetwork("-3");
+var configuration = new TonWalletKitConfiguration
 {
-    await kit.InitializeAsync("-3", "https://testnet.toncenter.com");
+    NetworkConfigurations = new List<TonNetworkConfiguration>
+    {
+        new TonNetworkConfiguration("-3", new TonApiClientConfiguration { Url = "https://testnet.toncenter.com" }),
+    },
+    WalletManifest = new TonWalletManifest
+    {
+        Name = "InteropSmoke",
+        AppName = "interop-smoke",
+        ImageUrl = "https://example.test/icon.png",
+        AboutUrl = "https://example.test",
+        UniversalLink = "https://example.test/ton-connect",
+        BridgeUrl = "https://bridge.tonapi.io/bridge",
+    },
+    Features = new List<TonFeature>
+    {
+        new TonFeature { Name = "SendTransaction", MaxMessages = 4 },
+    },
+    AppVersion = "0.0.1",
+};
 
-    var words = await kit.CreateMnemonicAsync();
-    Check("facade: createMnemonic -> 24 words", words.Count == 24, string.Join(" ", words).Substring(0, 30) + "…");
+using (var kit = new TonWalletKit(new FakeHost(), configuration))
+{
+    await kit.InitializeAsync();
+    Check("facade: initialize", kit.IsInitialized);
 
-    var wallet = await kit.RestoreWalletAsync(words);
-    Check("facade: mnemonic -> wallet", wallet.Address != null && wallet.WalletId != null, wallet.Address);
+    var mnemonic = await kit.GenerateMnemonicAsync();
+    Check("facade: mnemonic -> 24 words", mnemonic.Value.Count == 24, mnemonic.ToString());
 
-    var walletBalance = await wallet.GetBalanceAsync();
-    Check("facade: wallet.GetBalance", walletBalance == "110576459116021734", walletBalance);
+    var signer = await kit.SignerAsync(mnemonic);
+    Check("facade: signer has a public key", !string.IsNullOrEmpty(signer.PublicKey), signer.PublicKey);
 
-    var tx = await wallet.CreateTransferAsync(wallet.Address, "1000000", "from the facade");
-    Check("facade: CreateTransfer", tx != null && tx.Contains("messages"), tx);
+    var adapter = await kit.WalletV5R1AdapterAsync(signer, new TonV5R1WalletParameters(testnet));
+    Check("facade: adapter derives an address", adapter.Address?.StartsWith("UQ") == true, adapter.Address);
+    Check("facade: adapter reports its network", adapter.Network?.ChainId == "-3", adapter.Network?.ChainId);
 
-    var boc = await wallet.GetSignedTransactionAsync(tx, fakeSignature: true);
-    Check("facade: sign with fake signature", !string.IsNullOrEmpty(boc), boc);
+    var wallet = await kit.AddAsync(adapter);
+    Check("facade: wallet registered", wallet.Id != null && wallet.Address == adapter.Address, wallet.Id);
 
-    // Restoring the same mnemonic must yield the same address — that is what makes
-    // a restored wallet the same wallet.
-    var again = await kit.RestoreWalletAsync(words);
+    var walletBalance = await wallet.BalanceAsync();
+    Check("facade: balance is an exact amount",
+          walletBalance.ToRawString() == "110576459116021734", walletBalance.ToRawString());
+
+    // The whole point of the task: a request DTO in, a response DTO out.
+    var transfer = await wallet.TransferTonTransactionAsync(new TONTransferRequest(
+        transferAmount: "1000000",
+        recipientAddress: wallet.Address,
+        comment: "from the facade"));
+    Check("facade: transfer is a TONTransactionRequest",
+          transfer is TONTransactionRequest && transfer.Messages.Count == 1,
+          transfer?.Messages?[0]?.Address);
+    Check("facade: transfer carries the sender", transfer.FromAddress == wallet.Address, transfer.FromAddress);
+
+    var boc = await wallet.SignedSendTransactionAsync(transfer, new TONSignedSendTransactionOptions(true));
+    Check("facade: sign with a fake signature", boc != null && boc.StartsWith("te6"), boc);
+
+    var stateInit = await wallet.StateInitAsync();
+    Check("facade: state init is a BOC", stateInit != null && stateInit.StartsWith("te6"), stateInit);
+
+    // Watch-only, no wallet involved: the state DTO comes straight from walletkit.
+    var state = await kit.AddressStateAsync(wallet.Address);
+    Check("facade: address state -> TONAccountState",
+          state != null && state.RawBalance == "110576459116021734", state?.Status.ToString());
+
+    var wallets = await kit.WalletsAsync();
+    Check("facade: wallet is listed", wallets.Count == 1 && wallets[0].Id == wallet.Id, $"{wallets.Count} wallet(s)");
+
+    // Restoring the same mnemonic must yield the same address — that is what
+    // makes a restored wallet the same wallet.
+    var again = await kit.WalletV5R1AdapterAsync(await kit.SignerAsync(mnemonic),
+                                                 new TonV5R1WalletParameters(testnet));
     Check("facade: restore is deterministic", again.Address == wallet.Address, again.Address);
+
+    await kit.RemoveAsync(wallet.Id);
+    Check("facade: remove", (await kit.WalletsAsync()).Count == 0);
 }
 
 Console.WriteLine(failures == 0 ? "PASS" : "FAILED");

@@ -7,7 +7,10 @@ const schema = JSON.parse(fs.readFileSync('build/schema.json', 'utf8'));
 const definitions = schema.definitions ?? schema.$defs ?? {};
 
 // $ref targets must point at components/schemas, and names must be identifier-safe.
-const safe = (name) => name.replace(/[^A-Za-z0-9_]/g, '_');
+// A leading TON is dropped because the generator prefixes every model with TON:
+// without this, walletkit's TONTransferRequest becomes TONTONTransferRequest.
+// Stripping it here yields kit-ios's own names (TONTransferRequest, TONConnectSession).
+const safe = (name) => name.replace(/[^A-Za-z0-9_]/g, '_').replace(/^TON(?=[A-Z])/, '');
 const rewrite = (node) => {
     if (Array.isArray(node)) return node.map(rewrite);
     if (node && typeof node === 'object') {

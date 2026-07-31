@@ -28,6 +28,7 @@ namespace Ton.WalletKit.Api.Client
             options.Converters.Add(new TONBridgeEventJsonConverter());
             options.Converters.Add(new TONCONNECTEVENTERRORCODESJsonConverter());
             options.Converters.Add(new TONCONNECTEVENTERRORCODESNullableJsonConverter());
+            options.Converters.Add(new TONConnectSessionJsonConverter());
             options.Converters.Add(new TONConnectionApprovalProofJsonConverter());
             options.Converters.Add(new TONConnectionApprovalProofDomainJsonConverter());
             options.Converters.Add(new TONConnectionApprovalResponseJsonConverter());
@@ -174,8 +175,6 @@ namespace Ton.WalletKit.Api.Client
             options.Converters.Add(new TONSwapQuoteJsonConverter());
             options.Converters.Add(new TONSwapQuoteParamsJsonConverter());
             options.Converters.Add(new TONSwapTokenJsonConverter());
-            options.Converters.Add(new TONTONConnectSessionJsonConverter());
-            options.Converters.Add(new TONTONTransferRequestJsonConverter());
             options.Converters.Add(new TONTokenAnimationJsonConverter());
             options.Converters.Add(new TONTokenImageJsonConverter());
             options.Converters.Add(new TONTokenInfoJsonConverter());
@@ -226,6 +225,7 @@ namespace Ton.WalletKit.Api.Client
             options.Converters.Add(new TONTransactionTraceNodeJsonConverter());
             options.Converters.Add(new TONTransactionsResponseJsonConverter());
             options.Converters.Add(new TONTransactionsUpdateJsonConverter());
+            options.Converters.Add(new TONTransferRequestJsonConverter());
             options.Converters.Add(new TONUnpreparedSignDataJsonConverter());
             options.Converters.Add(new TONUnstakeModesJsonConverter());
             options.Converters.Add(new TONUnstakeModesNullableJsonConverter());
