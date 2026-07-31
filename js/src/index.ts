@@ -16,16 +16,20 @@ async function bootstrap(): Promise<void> {
             (globalThis as any).window = globalThis;
         }
 
+        // Static-literal dynamic imports so esbuild inlines them (a variable
+        // specifier would leave a runtime import() the host can't resolve).
         loading = 'textEncoder';
         const { default: textEncoder } = await import('./polyfills/textEncoder');
         textEncoder(globalThis);
 
-        for (const polyfill of ['./polyfills/buffer', './polyfills/url', './polyfills/generic'] as const) {
-            loading = polyfill;
-            await import(/* @vite-ignore */ polyfill);
-        }
+        loading = 'buffer';
+        await import('./polyfills/buffer');
+        loading = 'url';
+        await import('./polyfills/url');
+        loading = 'generic';
+        await import('./polyfills/generic');
 
-        loading = './main';
+        loading = 'main';
         await import('./main');
     } catch (error) {
         // eslint-disable-next-line no-console

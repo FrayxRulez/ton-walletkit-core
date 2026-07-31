@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "smoke": "node test/node-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
