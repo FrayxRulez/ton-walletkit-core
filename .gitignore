@@ -28,3 +28,7 @@ compile_commands.json
 .vs/
 .vscode/
 .idea/
+
+# C# build output
+bin/
+obj/

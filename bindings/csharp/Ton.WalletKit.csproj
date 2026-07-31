@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- netstandard2.0 so UWP / .NET Native can consume it (same target the
+         generated API models used). -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Ton.WalletKit</RootNamespace>
+    <AssemblyName>Ton.WalletKit</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>C# binding for ton-walletkit-core (twk.dll).</Description>
+  </PropertyGroup>
+
+  <!-- The SDK already globs src\**\*.cs; an explicit Include would duplicate it.
+       test\ holds the dev-only harness, which is its own executable project. -->
+  <ItemGroup>
+    <Compile Remove="test\**" />
+    <None Remove="test\**" />
+  </ItemGroup>
+
+</Project>
