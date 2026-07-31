@@ -40,6 +40,7 @@ add_subdirectory(src)
 # ---- test driver ------------------------------------------ (M0: twk-cli)
 if(TWK_BUILD_CLI)
     add_subdirectory(tools/twk-cli)
+    add_subdirectory(tools/twk-bench)
 endif()
 
 # ---- tests ------------------------------------------------ (M0: exit tests)

@@ -10,10 +10,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { CreateTonMnemonic } from '@ton/walletkit';
+import { hmac_sha512, pbkdf2_sha512, sha256, sha512, getSecureRandomBytes } from '@ton/crypto-primitives';
 
 (globalThis as any).walletKit = {
     async createMnemonic(): Promise<string[]> {
         return await CreateTonMnemonic();
+    },
+
+    // Times each crypto primitive the mnemonic path uses, to show which ones are
+    // worth backing with native shims. Returns { name: ms-per-call }.
+    async benchCrypto(rounds = 50): Promise<Record<string, number>> {
+        const data = Buffer.from('the quick brown fox jumps over the lazy dog'.repeat(4), 'utf-8');
+        const out: Record<string, number> = {};
+
+        const time = async (name: string, fn: () => Promise<unknown>) => {
+            const t0 = Date.now();
+            for (let i = 0; i < rounds; i++) {
+                await fn();
+            }
+            out[name] = (Date.now() - t0) / rounds;
+        };
+
+        await time('sha256', () => sha256(data));
+        await time('sha512', () => sha512(data));
+        await time('hmac_sha512', () => hmac_sha512(data, data));
+        await time('pbkdf2_390', () => pbkdf2_sha512(data, 'TON seed version', 390, 64));
+        await time('pbkdf2_1', () => pbkdf2_sha512(data, 'TON fast seed version', 1, 64));
+        await time('randomBytes32', async () => getSecureRandomBytes(32));
+        return out;
     },
 
     // Diagnostic helpers used by the transport tests (harmless in production).
