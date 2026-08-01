@@ -1,0 +1,166 @@
+name: CI
+
+# The core is written on Windows, so Linux and macOS are where the backends that
+# have never been compiled get their first check: OpenSSL, CommonCrypto, libcurl.
+# The sanitizer jobs matter just as much — MSVC only offers ASan, so this is the
+# only place the threading is seen by a race detector.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows (bcrypt),     os: windows-latest }
+          - { name: linux (openssl+curl), os: ubuntu-latest }
+          - { name: macos (commoncrypto), os: macos-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive   # QuickJS-ng
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+
+      # The native build embeds js/dist/bundle.h, so it must exist first.
+      - name: Build the JS bundle
+        working-directory: js
+        run: npm ci && npm run build
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libcurl4-openssl-dev libssl-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+
+      - name: Configure
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --timeout 300
+
+  portable-crypto:
+    name: portable crypto backend
+    runs-on: ubuntu-latest
+    # The fallback every platform without a system backend uses (Android above
+    # all), so it is checked even where a better backend exists.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: js
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build libcurl4-openssl-dev
+      - run: cmake -B build -S . -G Ninja -DTWK_CRYPTO_BACKEND=portable -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure --timeout 300
+
+  sanitizers:
+    name: sanitizer (${{ matrix.sanitizer }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address_undefined, thread]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: js
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build libcurl4-openssl-dev
+
+      - name: Configure
+        run: |
+          if [ "${{ matrix.sanitizer }}" = "thread" ]; then
+            flags="-fsanitize=thread -g -O1"
+          else
+            flags="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g -O1"
+          fi
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_FLAGS="$flags" -DCMAKE_CXX_FLAGS="$flags" \
+            -DCMAKE_EXE_LINKER_FLAGS="$flags" -DCMAKE_SHARED_LINKER_FLAGS="$flags"
+
+      - run: cmake --build build
+
+      - name: Test
+        # Sanitized builds are several times slower, so the timeouts that exist to
+        # catch hangs need room; they are hang detectors, not perf assertions.
+        env:
+          TWK_JS_BUDGET_MS: '600000'
+        run: ctest --test-dir build --output-on-failure --timeout 900
+
+  binding-csharp:
+    name: C# binding
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: js
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build the core
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build
+
+      - name: Check the generated facade is in sync with api/facade.json
+        # A hand-edit to the generated facade would be silently overwritten on the
+        # next regeneration, so it must not exist.
+        run: |
+          node scripts/generate-facade.mjs csharp
+          git diff --exit-code bindings/csharp/src/Facade
+
+      - name: Build the binding
+        run: dotnet build bindings/csharp/Ton.WalletKit.csproj -c Release
+
+      - name: Interop smoke against the real library
+        run: |
+          dotnet build bindings/csharp/test/InteropSmoke/InteropSmoke.csproj -c Release
+          copy build\bin\twk.dll bindings\csharp\test\InteropSmoke\bin\Release\net10.0\
+          dotnet bindings\csharp\test\InteropSmoke\bin\Release\net10.0\InteropSmoke.dll
