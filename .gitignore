@@ -37,3 +37,6 @@ compile_commands.json
 # C# build output
 bin/
 obj/
+
+# upstream reference clones (scripts/upstream.mjs)
+/.upstream/

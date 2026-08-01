@@ -1,0 +1,48 @@
+{
+  "$comment": [
+    "The upstream this library tracks, pinned to the commits it was written against.",
+    "Run `node scripts/upstream.mjs` to see what has changed since, and",
+    "`node scripts/upstream.mjs pin <name>` to move a pin once the change is absorbed.",
+    "`paths` narrows both the log and the diff to the parts we actually mirror —",
+    "the rest of these repos (demo apps, appkit, MCP) does not concern us."
+  ],
+  "npm": {
+    "@ton/walletkit": "1.0.0"
+  },
+  "repositories": {
+    "kit": {
+      "url": "https://github.com/ton-org/kit.git",
+      "ref": "main",
+      "commit": "3ed85b16aa8b9db328641224027d99d54182c2cb",
+      "date": "2026-07-08",
+      "why": "The JS we embed. api/models is the surface the C# DTOs are generated from, and walletkit-ios-bridge is the model our js/src is built on.",
+      "paths": [
+        "packages/walletkit/src/api/models",
+        "packages/walletkit/src/api/interfaces",
+        "packages/walletkit/src/clients/toncenter",
+        "packages/walletkit-ios-bridge/src"
+      ]
+    },
+    "kit-ios": {
+      "url": "https://github.com/ton-connect/kit-ios.git",
+      "ref": "main",
+      "commit": "d954ceca35da499ec6998a21b6872a9d9564f32e",
+      "date": "2026-06-23",
+      "why": "The API the C# binding mirrors method for method. A change under Sources/TONWalletKit/API is a change our facade should follow.",
+      "paths": [
+        "Sources/TONWalletKit/API"
+      ]
+    },
+    "kit-android": {
+      "url": "https://github.com/ton-connect/kit-android.git",
+      "ref": "main",
+      "commit": "334abc33260b9bb8b4628e544c5438fbce5f8817",
+      "date": "2026-06-22",
+      "why": "The second consumer of the same JS, and the model for our OpenAPI codegen. Useful as a second opinion when kit-ios is ambiguous.",
+      "paths": [
+        "TONWalletKit-Android/api",
+        "Scripts/generate-api"
+      ]
+    }
+  }
+}

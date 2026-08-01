@@ -16,7 +16,9 @@ js/              the JS QuickJS runs: ported walletkit bridge + polyfills (built
 bindings/        thin per-language wrappers (csharp / swift / kotlin)
 tools/twk-cli/   desktop test driver: JSON lines on stdin -> send -> print receive
 test/            unit + integration tests
+scripts/         build helpers, the API codegen, and the upstream tracker
 third_party/     vendored deps (QuickJS-ng submodule)
+upstream.json    the upstream commits this library was written against
 ```
 
 ## Build (desktop)
@@ -37,8 +39,37 @@ The native build embeds `js/dist/bundle.h`, so step 1 must run first (CI wiring
 comes in M8). On Windows, `scripts\win-build.bat amd64 test` does the CMake +
 Ninja build and runs the tests under the MSVC toolchain.
 
+## Tracking upstream
+
+This library mirrors three upstream repos, and drifts from them silently if nobody
+looks. [`upstream.json`](upstream.json) records the exact commit each was last
+reviewed at, and why we care about it:
+
+| repo | what we take from it |
+|---|---|
+| [`ton-org/kit`](https://github.com/ton-org/kit) | the JS we embed: `api/models` is what the C# DTOs are generated from, and `walletkit-ios-bridge` is the model for `js/src` |
+| [`ton-connect/kit-ios`](https://github.com/ton-connect/kit-ios) | the API the C# binding mirrors method for method |
+| [`ton-connect/kit-android`](https://github.com/ton-connect/kit-android) | the second consumer of the same JS, and the model for our OpenAPI codegen |
+
+```sh
+node scripts/upstream.mjs              # what changed since the pins
+node scripts/upstream.mjs files kit-ios # which files, for the paths we mirror
+node scripts/upstream.mjs diff kit-ios  # the diff itself
+node scripts/upstream.mjs pin kit-ios   # move the pin, once absorbed
+```
+
+Each entry lists the `paths` we actually mirror, so the report ignores demo apps,
+`appkit` and the MCP server, and counts only commits that can affect us. Clones
+land in `.upstream/` (gitignored) as blobless partial clones — full history for
+`log`/`diff`, blobs fetched only when you ask for a diff.
+
+The pinned npm version of `@ton/walletkit` lives in `js/package.json`;
+`upstream.json` repeats it so one file answers "what were we built against".
+
 ## Status
-Early scaffolding — see `ROADMAP.md`. Milestone **M0** (walking skeleton) in progress.
+**M0–M6 done** (see `ROADMAP.md`): the core runs walletkit in QuickJS behind the C ABI, with
+host delegates for HTTP/SSE/storage, native crypto, sanitizer-clean teardown, and a C# binding
+that mirrors kit-ios method for method over generated DTOs. Left in M6: arm64 and packaging.
 
 ## License
 TBD.
