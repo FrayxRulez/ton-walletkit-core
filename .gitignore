@@ -54,3 +54,7 @@ build-bc/
 /bindings/android/build/
 /bindings/android/.gradle/
 /bindings/android/local.properties
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
