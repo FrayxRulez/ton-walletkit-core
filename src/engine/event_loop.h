@@ -46,7 +46,13 @@ public:
 
     bool isRunning() const;
 
-    // Enqueue a task to run on the worker thread. Thread-safe; no-op after stop.
+    // Enqueue a task to run on the worker thread. Thread-safe.
+    //
+    // After stop() the task is dropped — and therefore destroyed on the calling
+    // thread. Anything a task owns that is worker-thread-only (JS values above
+    // all) must not reach post() once the loop can be stopping; the client keeps
+    // that true by leaving the live-client registry before it stops the loop, so
+    // no host completion is still posting by then.
     void post(Task task);
 
     // Schedule a timer. `delay_ms` is both the initial delay and, when `repeat`,

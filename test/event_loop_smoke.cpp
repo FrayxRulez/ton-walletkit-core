@@ -73,6 +73,54 @@ static bool test_timers() {
     return true;
 }
 
+// Timers that come due together must still fire in deadline order. This is the
+// failure that read as a macOS CI flake: a loaded runner overslept all three
+// deadlines, they were collected in one wakeup, and the loop ran them in the
+// order they happened to sit in its vector — 60 before 20. Stalling the loop
+// past every deadline reproduces that on any machine.
+static bool test_timer_order_after_stall() {
+    EventLoop loop;
+    loop.start({});
+
+    std::mutex m;
+    std::vector<int> order;
+    auto record = [&](int v) { return [&, v] { std::lock_guard<std::mutex> g(m); order.push_back(v); }; };
+
+    // Occupy the worker past every deadline below, so all three are due at once.
+    std::promise<void> entered;
+    auto stalling = entered.get_future();
+    loop.post([&] {
+        entered.set_value();
+        std::this_thread::sleep_for(150ms);
+    });
+    stalling.wait();
+
+    // Registered out of deadline order on purpose.
+    loop.addTimer(60, false, record(60));
+    loop.addTimer(20, false, record(20));
+    loop.addTimer(40, false, record(40));
+
+    auto deadline = std::chrono::steady_clock::now() + 5s;
+    for (;;) {
+        {
+            std::lock_guard<std::mutex> g(m);
+            if (order.size() >= 3 || std::chrono::steady_clock::now() > deadline) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(2ms);
+    }
+    loop.stop();
+
+    std::lock_guard<std::mutex> g(m);
+    std::vector<int> expected{20, 40, 60};
+    if (order != expected) {
+        printf("test_timer_order_after_stall: unexpected order (size %zu)\n", order.size());
+        return false;
+    }
+    return true;
+}
+
 static bool test_repeat_timer() {
     EventLoop loop;
     loop.start({});
@@ -152,6 +200,7 @@ int main() {
     } tests[] = {
         {"tasks", test_tasks},
         {"timers", test_timers},
+        {"timer_order_after_stall", test_timer_order_after_stall},
         {"repeat_timer", test_repeat_timer},
         {"js_microtask_pump", test_js_microtask_pump},
     };

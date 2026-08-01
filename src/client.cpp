@@ -67,7 +67,9 @@ Client::Client(const twk_delegates* delegates, void* user) : delegates_(delegate
 
 Client::~Client() {
     // Leave the registry first: from here on, host completions can't reach us, so
-    // nothing can touch this object while it tears down.
+    // nothing can touch this object while it tears down. withLive holds the
+    // registry lock across the whole completion, so this also waits out any that
+    // is mid-flight — meaning no host thread is still posting once the loop stops.
     unregisterLive(this);
 
     {
@@ -77,8 +79,9 @@ Client::~Client() {
     out_cv_.notify_all();  // release a blocked receive()
     loop_.stop();          // joins the worker thread (runs onStop -> frees js_)
 
-    // Drop in-flight delegate calls: any completion arriving after this is for a
-    // token we no longer know about and is ignored.
+    // onStop already released the handler maps on the worker thread, which is the
+    // only thread allowed to free the JS values they hold; this is the belt to
+    // that braces, and must find nothing left to destroy.
     std::lock_guard<std::mutex> guard(tokens_mutex_);
     http_pending_.clear();
 }
@@ -163,18 +166,22 @@ void Client::completeSseEvent(int64_t token, std::string data) {
 }
 
 void Client::completeSseClosed(int64_t token, std::string error, bool had_error) {
-    std::function<void(std::string, bool)> handler;
+    SseHandlers handlers;
     {
         std::lock_guard<std::mutex> guard(tokens_mutex_);
         auto it = sse_streams_.find(token);
         if (it == sse_streams_.end()) {
             return;
         }
-        handler = std::move(it->second.on_closed);
-        sse_streams_.erase(it); // terminal
+        // The whole entry moves out, not just on_closed: on_event holds a JS
+        // callback too, and erasing it here would run JS_FreeValue on this host
+        // thread while the worker is executing JS. Both handlers ride to the
+        // worker in the task below and are destroyed there when it returns.
+        handlers = std::move(it->second);
+        sse_streams_.erase(it); // terminal; the node now holds moved-from handlers
     }
-    loop_.post([handler = std::move(handler), error = std::move(error), had_error]() mutable {
-        handler(std::move(error), had_error);
+    loop_.post([handlers = std::move(handlers), error = std::move(error), had_error]() mutable {
+        handlers.on_closed(std::move(error), had_error);
     });
 }
 

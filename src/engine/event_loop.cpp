@@ -3,10 +3,23 @@
 //
 #include "engine/event_loop.h"
 
+#include <algorithm>
 #include <optional>
 #include <utility>
 
 namespace twk {
+
+namespace {
+
+// A timer that came due in this wakeup, pulled out so the batch can be ordered
+// before anything runs.
+struct DueTimer {
+    std::chrono::steady_clock::time_point due;
+    EventLoop::TimerId id;
+    EventLoop::Task callback;
+};
+
+} // namespace
 
 EventLoop::~EventLoop() {
     stop();
@@ -80,6 +93,7 @@ void EventLoop::run(Hooks hooks) {
     }
 
     std::vector<Task> ready;
+    std::vector<DueTimer> due_now;
     for (;;) {
         ready.clear();
         {
@@ -87,7 +101,18 @@ void EventLoop::run(Hooks hooks) {
             for (;;) {
                 if (stop_requested_) {
                     running_ = false;
+
+                    // Tasks that were queued but never got to run can own JS values
+                    // (the host completions capture QuickJS callbacks), and those may
+                    // only be released on this thread while the runtime is still up.
+                    // Destroying them here rather than leaving them to ~EventLoop,
+                    // which runs on whichever thread destroys the owner — and runs
+                    // after on_stop has already torn the runtime down.
+                    std::deque<Task> abandoned;
+                    abandoned.swap(tasks_);
                     lock.unlock();
+                    abandoned.clear();
+
                     if (hooks.on_stop) {
                         hooks.on_stop();
                     }
@@ -98,10 +123,11 @@ void EventLoop::run(Hooks hooks) {
                 std::optional<std::chrono::steady_clock::time_point> earliest;
 
                 // Collect due timers; reschedule repeats, drop fired one-shots.
+                due_now.clear();
                 for (size_t i = 0; i < timers_.size();) {
                     Timer& timer = timers_[i];
                     if (timer.due <= now) {
-                        ready.push_back(timer.callback);
+                        due_now.push_back(DueTimer{timer.due, timer.id, timer.callback});
                         if (timer.repeat) {
                             timer.due = now + std::chrono::milliseconds(timer.period_ms);
                             ++i;
@@ -114,6 +140,20 @@ void EventLoop::run(Hooks hooks) {
                         }
                         ++i;
                     }
+                }
+
+                // By deadline, then by id so same-deadline timers keep FIFO order.
+                // When the loop wakes late — a loaded machine, a sanitizer build —
+                // several timers are due at once, and firing them in whatever order
+                // they happen to sit in the vector would run a 60ms timer before a
+                // 20ms one. Only sorted when it can matter: one timer is the norm.
+                if (due_now.size() > 1) {
+                    std::sort(due_now.begin(), due_now.end(), [](const DueTimer& a, const DueTimer& b) {
+                        return a.due != b.due ? a.due < b.due : a.id < b.id;
+                    });
+                }
+                for (DueTimer& timer : due_now) {
+                    ready.push_back(std::move(timer.callback));
                 }
 
                 // Collect queued tasks.
