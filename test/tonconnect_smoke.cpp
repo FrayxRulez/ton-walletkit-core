@@ -206,7 +206,10 @@ int main() {
         }
 
         result = call(c, 6, "approveConnectRequest", "[" + payload + "]");
-        bool approved = !contains(result, "\"error\"") && result != "<timeout>";
+        // Failure is an {"error":…} envelope, so the prefix decides it: searching
+        // the whole reply would trip over any payload that happens to contain the
+        // word (see the mnemonic smoke, which learned that the hard way).
+        bool approved = result.rfind("{\"error\"", 0) != 0 && result != "<timeout>";
         printf("%s: approveConnectRequest succeeded\n   %.190s\n", approved ? "ok" : "FAIL", result.c_str());
         ok = ok && approved;
     }

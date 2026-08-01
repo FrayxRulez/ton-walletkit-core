@@ -29,15 +29,17 @@ int main() {
     }
 
     std::string s(out);
-    // Envelope is {"result":["w1",...,"w24"]}: 24 words -> 23 commas, no "error".
+    // Envelope is {"result":["w1",...,"w24"]}: 24 words -> 23 commas. Success is
+    // decided by the envelope's own prefix, never by searching for "error"
+    // anywhere in the reply — "error" is a word in the mnemonic list, so that
+    // check failed roughly one run in ten once it drew a mnemonic containing it.
     int commas = 0;
     for (char ch : s) {
         if (ch == ',') {
             ++commas;
         }
     }
-    bool ok = rid == 1 && s.rfind("{\"result\":[", 0) == 0 && s.find("\"error\"") == std::string::npos &&
-              commas == 23;
+    bool ok = rid == 1 && s.rfind("{\"result\":[", 0) == 0 && commas == 23;
 
     printf("createMnemonic rid=%llu commas=%d\n%.140s%s\n", rid, commas, s.c_str(), s.size() > 140 ? " ..." : "");
     twk_client_destroy(c);
