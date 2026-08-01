@@ -108,7 +108,11 @@ jobs:
           if [ "${{ matrix.sanitizer }}" = "thread" ]; then
             flags="-fsanitize=thread -g -O1"
           else
-            flags="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g -O1"
+            # -fno-sanitize=function: QuickJS calls its allocator through
+            # deliberately cast function pointers, which UBSan's function check
+            # rejects. That is third-party code doing it on purpose, and the
+            # check is unrelated to anything we could fix.
+            flags="-fsanitize=address,undefined -fno-sanitize=function -fno-sanitize-recover=undefined -g -O1"
           fi
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
