@@ -295,8 +295,8 @@ JNIEXPORT void JNICALL Java_org_ton_walletkit_core_Native_send(JNIEnv* env, jcla
                                                                jbyteArray params) {
     const std::string method_utf8 = from_bytes(env, method);
     const std::string params_utf8 = from_bytes(env, params);
-    twk_send(reinterpret_cast<twk_client*>(client), static_cast<uint64_t>(request_id), method_utf8.c_str(),
-             params_utf8.c_str());
+    twk_send(reinterpret_cast<twk_client*>(client), static_cast<unsigned long long>(request_id),
+             method_utf8.c_str(), params_utf8.c_str());
 }
 
 /**
@@ -306,7 +306,9 @@ JNIEXPORT void JNICALL Java_org_ton_walletkit_core_Native_send(JNIEnv* env, jcla
 JNIEXPORT jbyteArray JNICALL Java_org_ton_walletkit_core_Native_receive(JNIEnv* env, jclass, jlong client,
                                                                        jdouble timeout,
                                                                        jlongArray request_id_out) {
-    uint64_t request_id = 0;
+    // The ABI says unsigned long long, which is not uint64_t on LP64 platforms
+    // even though it is the same width — so the declaration follows the header.
+    unsigned long long request_id = 0;
     const char* message = twk_receive(reinterpret_cast<twk_client*>(client), timeout, &request_id);
     if (message == nullptr) {
         return nullptr;

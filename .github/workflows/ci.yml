@@ -160,7 +160,9 @@ jobs:
         run: dotnet build bindings/csharp/Ton.WalletKit.csproj -c Release
 
       - name: Interop smoke against the real library
+        # Published to a fixed directory: the build output path depends on the
+        # platform the SDK picks (bin/x64/Release here), which is not worth guessing.
         run: |
-          dotnet build bindings/csharp/test/InteropSmoke/InteropSmoke.csproj -c Release
-          copy build\bin\twk.dll bindings\csharp\test\InteropSmoke\bin\Release\net10.0\
-          dotnet bindings\csharp\test\InteropSmoke\bin\Release\net10.0\InteropSmoke.dll
+          dotnet publish bindings/csharp/test/InteropSmoke/InteropSmoke.csproj -c Release -o smoke
+          copy build\bin\twk.dll smoke\
+          dotnet smoke\InteropSmoke.dll

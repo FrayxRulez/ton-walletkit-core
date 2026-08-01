@@ -13,6 +13,7 @@
 //
 #include "util/crypto.h"
 
+#include <CommonCrypto/CommonCryptoError.h>
 #include <CommonCrypto/CommonDigest.h>
 #include <CommonCrypto/CommonHMAC.h>
 #include <CommonCrypto/CommonKeyDerivation.h>
