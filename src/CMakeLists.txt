@@ -8,23 +8,67 @@ if(NOT EXISTS ${CMAKE_SOURCE_DIR}/js/dist/bundle.h)
 endif()
 
 # Precompile the bundle to QuickJS bytecode so clients don't re-parse ~1.7MB of
-# JS on startup. Requires running twk-bundlec, which is built for the *target*;
-# when cross-compiling it can't run here, so fall back to embedding the source.
-if(CMAKE_CROSSCOMPILING)
-    message(STATUS "twk: cross-compiling — embedding JS source (bytecode needs a host-native twk-bundlec)")
-    set(TWK_USE_BYTECODE OFF)
+# JS on startup (1380 -> 1100 ms). twk-bundlec is built for the *target*, so on a
+# cross build it cannot run here: point TWK_BUNDLEC at a host-native one (the
+# arm64 build reuses the x64 build's), or fall back to embedding the source.
+#
+# MSVC builds arm64 from an x64 host without setting CMAKE_CROSSCOMPILING, and
+# leaves CMAKE_SYSTEM_PROCESSOR at the host's value — so the *compiler's* target
+# is what to compare against.
+function(twk_normalize_arch value out)
+    string(TOLOWER "${value}" lowered)
+    if(lowered MATCHES "^(amd64|x86_64|x64)$")
+        set(${out} "x64" PARENT_SCOPE)
+    elseif(lowered MATCHES "^(arm64|aarch64)$")
+        set(${out} "arm64" PARENT_SCOPE)
+    else()
+        set(${out} "${lowered}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID)
+    twk_normalize_arch("${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" TWK_TARGET_ARCH)
 else()
+    twk_normalize_arch("${CMAKE_SYSTEM_PROCESSOR}" TWK_TARGET_ARCH)
+endif()
+twk_normalize_arch("${CMAKE_HOST_SYSTEM_PROCESSOR}" TWK_HOST_ARCH)
+if(CMAKE_CROSSCOMPILING OR NOT TWK_TARGET_ARCH STREQUAL TWK_HOST_ARCH)
+    set(TWK_CROSS_BUILD ON)
+else()
+    set(TWK_CROSS_BUILD OFF)
+endif()
+
+set(TWK_BUNDLEC "" CACHE FILEPATH "Host-native twk-bundlec, for cross builds")
+
+set(TWK_BC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/bundle_bc.h)
+set(TWK_BUNDLEC_COMMAND "")
+set(TWK_BUNDLEC_DEPENDS "")
+
+if(NOT TWK_CROSS_BUILD)
+    set(TWK_BUNDLEC_COMMAND twk-bundlec)
+    set(TWK_BUNDLEC_DEPENDS twk-bundlec)
+elseif(TWK_BUNDLEC AND EXISTS ${TWK_BUNDLEC})
+    message(STATUS "twk: cross build (${TWK_HOST_ARCH} -> ${TWK_TARGET_ARCH}) using host twk-bundlec: ${TWK_BUNDLEC}")
+    set(TWK_BUNDLEC_COMMAND ${TWK_BUNDLEC})
+    set(TWK_BUNDLEC_DEPENDS ${TWK_BUNDLEC})
+else()
+    message(STATUS "twk: cross build (${TWK_HOST_ARCH} -> ${TWK_TARGET_ARCH}) - embedding JS source; "
+                   "pass -DTWK_BUNDLEC=<host twk-bundlec> for bytecode")
+endif()
+
+if(TWK_BUNDLEC_COMMAND)
     set(TWK_USE_BYTECODE ON)
-    set(TWK_BC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/bundle_bc.h)
     add_custom_command(
         OUTPUT  ${TWK_BC_HEADER}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
-        COMMAND twk-bundlec ${CMAKE_SOURCE_DIR}/js/dist/bundle.js ${TWK_BC_HEADER} twk_bundle_bc
-        DEPENDS twk-bundlec ${CMAKE_SOURCE_DIR}/js/dist/bundle.js
+        COMMAND ${TWK_BUNDLEC_COMMAND} ${CMAKE_SOURCE_DIR}/js/dist/bundle.js ${TWK_BC_HEADER} twk_bundle_bc
+        DEPENDS ${TWK_BUNDLEC_DEPENDS} ${CMAKE_SOURCE_DIR}/js/dist/bundle.js
         COMMENT "Compiling JS bundle -> QuickJS bytecode"
         VERBATIM
     )
     add_custom_target(twk_bundle_bytecode DEPENDS ${TWK_BC_HEADER})
+else()
+    set(TWK_USE_BYTECODE OFF)
 endif()
 
 # --- platform crypto backend ---
