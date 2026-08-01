@@ -1,9 +1,16 @@
 //
 // ton-walletkit-core — platform crypto primitives (internal).
 //
-// Backed by the OS crypto library (BCrypt on Windows). These exist because the
-// pure-JS implementations (jssha) are far too slow in the QuickJS interpreter:
-// hmac_sha512 measured ~49 ms/call vs ~0.02 ms natively.
+// Backed by the platform: BCrypt on Windows, CommonCrypto on Apple, OpenSSL when
+// CMake finds it, and a self-contained implementation everywhere else (Android
+// has no stable crypto C API). One backend per build, chosen by
+// TWK_CRYPTO_BACKEND — see src/util/crypto_*.cpp, and README's platform table.
+//
+// These exist because the pure-JS implementations (jssha) are far too slow in the
+// QuickJS interpreter: hmac_sha512 measured ~49 ms/call vs ~0.02 ms natively.
+//
+// twk_crypto_kat must pass for whichever backend is selected: a fast, wrong hash
+// produces wrong keys in silence.
 //
 // M2 note: these are process-wide platform calls, not host delegates — unlike
 // HTTP/SSE/storage, hashing has no reason to cross the delegate boundary.

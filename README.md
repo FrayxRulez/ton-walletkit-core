@@ -76,9 +76,20 @@ It is not a match for a system implementation, and is not meant to be:
 Entropy is never `std::random_device`, which the standard permits to be a
 deterministic PRNG — and on some toolchains really is.
 
-The reference host is Windows-only for now (WinHTTP); on other platforms its HTTP
-and SSE entry points return failure, so the two tests that need real requests
-cannot run there yet. libcurl is the obvious backend when that matters.
+**The shipped core never makes an HTTP request itself** — HTTP and SSE are host
+delegates, supplied by the embedder (Unigram routes them through TDLib, Telegram
+Desktop would use its own networking, iOS `URLSession`, Android OkHttp). So there
+is nothing to port there.
+
+The *test* host is a different matter: it uses WinHTTP on Windows and libcurl
+elsewhere when CMake finds it, which is what lets the suite run on Linux/macOS —
+and with it the sanitizers MSVC does not have (TSan, UBSan). Without either
+backend the host reports `httpAvailable() == false` and the tests that need real
+requests skip rather than fail. The libcurl path is written but **not yet
+compiled** anywhere.
+
+Build with `scripts/win-build.bat [amd64|arm64] [test]` on Windows, or
+`scripts/build.sh [test]` elsewhere.
 
 ## Tracking upstream
 
