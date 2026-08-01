@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // SSE seam: JS EventSource -> __twk_sse_open -> the sse_open delegate, then many
 // events and one close flowing back. Unlike HTTP this is multi-shot, so the test
 // checks that the stream survives repeated events, carries event ids (TON Connect

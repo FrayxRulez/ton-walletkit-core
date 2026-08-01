@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Regenerates THIRD_PARTY_NOTICES.md.
 //
 //   node scripts/generate-notices.mjs

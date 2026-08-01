@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Exercises the host-delegate seam: the core calls http_request, the host
 // completes from another thread, and the result lands back on the worker thread.
 // Also covers cancellation, transport failure, missing-delegate, and completions

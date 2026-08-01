@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // M2 exit criterion, deterministic variant: init the kit and read a balance
 // through walletkit's own ApiClientToncenter, with the host delegate replaying a
 // recorded /api/v3/addressInformation response instead of touching the network.

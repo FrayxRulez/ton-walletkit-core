@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Exercises the host shims (console / crypto.getRandomValues / Pbkdf2.derive /
 // timers) on a worker-thread JsRuntime + Shims, mirroring the real client setup
 // (EventLoop + HostContext). Returns 0 on pass.

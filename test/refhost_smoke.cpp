@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Drives the core against a real endpoint through the reference host, proving the
 // whole chain works with no platform integration:
 //   JS fetch -> __twk_http -> http_request delegate -> WinHTTP -> twk_http_respond.

@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Sanity check for the JsRuntime wrapper: register a native global, eval JS that
 // calls it, and read the result back as JSON. Returns 0 iff the result is 42.
 #include <cstdio>

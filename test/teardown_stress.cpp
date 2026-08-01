@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Teardown across varied in-flight states — no crashes/leaks (run under a leak
 // checker in M5; here it asserts behaviour and exercises the paths). Returns 0.
 //

@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // JSON for the ABI: builds the positional argument arrays twk_send takes, and
 // reads result envelopes into the generated DTOs.
 //

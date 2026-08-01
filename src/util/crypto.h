@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // ton-walletkit-core — platform crypto primitives (internal).
 //
 // Backed by the platform: BCrypt on Windows, CommonCrypto on Apple, OpenSSL when

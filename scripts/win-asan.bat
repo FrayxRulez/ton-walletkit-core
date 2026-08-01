@@ -1,4 +1,11 @@
 @echo off
+::
+:: Copyright (c) Fela Ameghino 2026
+::
+:: Distributed under the MIT License. (See accompanying file LICENSE or copy at
+:: https://opensource.org/licenses/MIT)
+::
+
 rem Build + run the test suite under AddressSanitizer (MSVC /fsanitize=address).
 rem Usage: scripts\win-asan.bat [amd64]
 setlocal

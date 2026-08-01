@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Unsolicited updates: the core pushing rather than answering. Events reach
 // twk_receive with request_id = 0, are distinguishable from responses, and
 // interleave with them without corrupting correlation. Returns 0 on pass.

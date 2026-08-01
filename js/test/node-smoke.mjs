@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Standalone Node smoke for dist/bundle.js: run the bundle with the host globals
 // mocked (Pbkdf2 via Node crypto; crypto.getRandomValues is native in Node), then
 // call walletKit.createMnemonic() and assert 24 words. Separates "bundle/logic"

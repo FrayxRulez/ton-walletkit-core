@@ -1,3 +1,10 @@
+#
+# Copyright (c) Fela Ameghino 2026
+#
+# Distributed under the MIT License. (See accompanying file LICENSE or copy at
+# https://opensource.org/licenses/MIT)
+#
+
 cmake_minimum_required(VERSION 3.20)
 
 project(ton_walletkit_core

@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // ton-walletkit-core — the platform entropy source (internal).
 //
 // Separate from the hash backend because it is the one primitive that must come

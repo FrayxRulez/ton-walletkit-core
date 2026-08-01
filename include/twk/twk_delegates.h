@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // ton-walletkit-core — host delegates.
 //
 // The core performs no I/O of its own: HTTP, SSE and secure storage are provided

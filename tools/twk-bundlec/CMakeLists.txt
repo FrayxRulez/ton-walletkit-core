@@ -1,3 +1,9 @@
+#
+# Copyright (c) Fela Ameghino 2026
+#
+# Distributed under the MIT License. (See accompanying file LICENSE or copy at
+# https://opensource.org/licenses/MIT)
+#
 # Build-time tool: compiles the JS bundle to QuickJS bytecode.
 # Links qjs + the core's base64 helper directly (not the twk library, which would
 # be circular: twk consumes this tool's output).

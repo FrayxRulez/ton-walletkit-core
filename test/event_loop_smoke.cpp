@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Sanity checks for the EventLoop: task dispatch, timer ordering + cancellation,
 // and the after_work hook draining QuickJS microtasks in order. Returns 0 on pass.
 #include <chrono>

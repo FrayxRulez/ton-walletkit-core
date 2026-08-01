@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // End-to-end for the JS fetch shim: JS calls fetch() -> __twk_http -> the host
 // delegate -> twk_http_respond -> the Promise resolves and JS reads the Response.
 // Covers success, request shaping (method/headers/body), HTTP errors, transport

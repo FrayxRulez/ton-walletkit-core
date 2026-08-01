@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Robustness: bad input and misbehaving hosts must produce errors, not crashes,
 // hangs, or corrupted correlation. Everything here is something a buggy binding
 // or a hostile dapp could actually do. Returns 0 on pass.

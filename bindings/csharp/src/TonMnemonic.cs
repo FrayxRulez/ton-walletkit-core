@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // The values the facade hands back that are not walletkit models.
 //
 // Hand-written: a mnemonic is not a string (confusing it with one is how secrets

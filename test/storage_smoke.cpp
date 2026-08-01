@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Storage delegate contract: get-missing, set/get, update, remove, clear — driven
 // from JS through HostStorageAdapter -> __twk_storage -> the delegate. Also checks
 // that data written by one client is visible to the next (file-backed store), the

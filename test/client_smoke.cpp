@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Sanity checks for the C ABI over the native-await transport: send/receive
 // correlation, the {result}/{error} envelopes, timeout, ordering, and
 // create/destroy churn. Drives the stub walletKit (echo/fail). Returns 0 on pass.

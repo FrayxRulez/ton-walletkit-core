@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // twk-cli — a tiny desktop driver for ton-walletkit-core (the `tdcli` analog).
 //
 // Reads request lines from a file (argv[1]) or stdin and sends them; a background

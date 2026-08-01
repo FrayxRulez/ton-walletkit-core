@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Drives the C# binding against a real twk.dll: P/Invoke marshalling, the receive
 // loop, request/response correlation, error faulting, unsolicited events — and
 // the typed facade, where every payload is a generated DTO.

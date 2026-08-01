@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Generates the typed facade for every binding from api/facade.json.
 //
 //   node scripts/generate-facade.mjs            every language

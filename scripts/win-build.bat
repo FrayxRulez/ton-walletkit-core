@@ -1,4 +1,11 @@
 @echo off
+::
+:: Copyright (c) Fela Ameghino 2026
+::
+:: Distributed under the MIT License. (See accompanying file LICENSE or copy at
+:: https://opensource.org/licenses/MIT)
+::
+
 rem Configure + build (+ optionally test) the core on Windows with Ninja under the MSVC toolchain.
 rem Usage: scripts\win-build.bat [amd64|arm64] [test]
 setlocal

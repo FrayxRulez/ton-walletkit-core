@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // The typed entry point (kit-ios TONWalletKit): the half that is not mechanical.
 //
 // Everything that is just "call an ABI method and read the result" is generated

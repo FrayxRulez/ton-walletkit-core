@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // ton-walletkit-core — SHA-2 / HMAC / PBKDF2 via OpenSSL (internal).
 //
 // For platforms where OpenSSL is genuinely part of the environment: Linux

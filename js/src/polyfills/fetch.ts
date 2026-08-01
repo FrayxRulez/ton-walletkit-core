@@ -1,3 +1,10 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
+
 /**
  * A thin `fetch` for the QuickJS host, built on the native `__twk_http`
  * primitive (which routes to the host's http_request delegate).

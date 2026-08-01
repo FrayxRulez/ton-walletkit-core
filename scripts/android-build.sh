@@ -1,4 +1,10 @@
 #!/usr/bin/env sh
+#
+# Copyright (c) Fela Ameghino 2026
+#
+# Distributed under the MIT License. (See accompanying file LICENSE or copy at
+# https://opensource.org/licenses/MIT)
+#
 # Cross-builds libtwk.so for Android, one ABI at a time.
 #
 #   ANDROID_NDK_HOME=/path/to/ndk scripts/android-build.sh              # all ABIs

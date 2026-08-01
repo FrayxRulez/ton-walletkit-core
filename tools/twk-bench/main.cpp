@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // twk-bench — where does the time go? Splits client startup (bundle load) from
 // per-call cost, so perf work is measured rather than guessed.
 //

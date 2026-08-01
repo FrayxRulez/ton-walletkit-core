@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Known-answer tests for the native crypto backing the wallet's key derivation.
 // These MUST match the reference implementations exactly — a mismatch would
 // silently produce wrong mnemonics/keys. Vectors are the published RFC ones

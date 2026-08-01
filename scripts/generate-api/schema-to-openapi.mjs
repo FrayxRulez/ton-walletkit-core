@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Wraps the JSON Schema from ts-json-schema-generator into a minimal OpenAPI 3.0
 // document, which is what openapi-generator consumes. Only components.schemas
 // matters — we generate models, not a client.

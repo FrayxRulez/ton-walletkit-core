@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Tracks the upstream this library mirrors.
 //
 //   node scripts/upstream.mjs                 what changed since the pins

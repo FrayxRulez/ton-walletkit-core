@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // M1 exit criterion: run createMnemonic through the real @ton/walletkit bundle
 // embedded in QuickJS and assert a 24-word TON mnemonic comes back. This proves
 // the canonical walletkit JS loads and runs a real crypto call in the core

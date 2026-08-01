@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Emits the C# facade from api/facade.json.
 //
 // What is generated: the interfaces, the wallet/adapter/signer implementations,

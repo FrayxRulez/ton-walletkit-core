@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Writes src/api-surface.ts: the entry point ts-json-schema-generator reads.
 //
 // Why a generated file rather than a one-line `export type * from '…/models'`:

@@ -1,3 +1,9 @@
+#
+# Copyright (c) Fela Ameghino 2026
+#
+# Distributed under the MIT License. (See accompanying file LICENSE or copy at
+# https://opensource.org/licenses/MIT)
+#
 # The core library. Static for now (desktop tests link it in-process); a shared
 # library exposing the C ABI comes with the packaging milestone (M6/M8).
 

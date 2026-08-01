@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // P/Invoke declarations for the ton-walletkit-core C ABI (include/twk/twk.h).
 //
 // Marshalling is manual throughout. The ABI speaks UTF-8 `const char*`, while

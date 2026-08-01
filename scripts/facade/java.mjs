@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Emits the Java facade from api/facade.json, for the Android binding.
 //
 // Same schema as the C# emitter, different conventions: Java 8, callbacks rather

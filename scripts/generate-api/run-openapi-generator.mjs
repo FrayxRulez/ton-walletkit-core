@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Runs openapi-generator to emit AOT-safe C# models.
 //
 // generichost + System.Text.Json is deliberate: it emits hand-written converters

@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Unit tests for the text/event-stream framing parser. This is the fiddly part
 // of SSE — multi-line data, comments, CRLF, chunk boundaries, id persistence —
 // so it is tested directly rather than only through a live stream. Returns 0.

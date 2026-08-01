@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Proves send/receive genuinely crosses native -> JS -> native: the params are
 // parsed to a JS value and re-stringified, so `1e3` comes back normalized to
 // `1000` (a plain C++ echo would return the literal "1e3"). Returns 0 on pass.

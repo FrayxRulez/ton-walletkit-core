@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Loads the shared library the way a binding does — dynamically, by name, with no
 // link-time dependency — and drives a full request through the resolved pointers.
 // This is the closest C++ analogue of what P/Invoke, JNI or dlopen-from-Swift

@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // JNI shim for ton-walletkit-core.
 //
 // Everything crosses this boundary as byte[], never jstring: JNI's

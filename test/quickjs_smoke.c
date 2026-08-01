@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Minimal sanity check that the vendored QuickJS-ng links and evaluates JS.
 // Built as `twk_qjs_smoke` when TWK_BUILD_TESTS is ON; returns 0 iff eval == 7.
 #include <stdio.h>

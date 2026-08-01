@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Concurrency stress. MSVC ships no ThreadSanitizer, so this cannot *prove* the
 // absence of data races; its job is to make races likely enough to surface, and
 // to be run under AddressSanitizer (scripts\win-asan.bat) where a torn read of a

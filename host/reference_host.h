@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Reference host — a test-only implementation of the twk delegates.
 //
 // Lets the core be exercised end to end (twk-cli, tests) against real endpoints

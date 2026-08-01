@@ -1,3 +1,10 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
+
 /**
  * The walletKit surface the native core calls (kit-ios main.ts analog).
  *

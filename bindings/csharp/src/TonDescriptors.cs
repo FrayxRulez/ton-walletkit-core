@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // The core's own reply shapes, and their converters.
 //
 // These are not walletkit models — they are what the JS layer returns when it

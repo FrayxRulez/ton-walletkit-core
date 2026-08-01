@@ -1,3 +1,9 @@
+#
+# Copyright (c) Fela Ameghino 2026
+#
+# Distributed under the MIT License. (See accompanying file LICENSE or copy at
+# https://opensource.org/licenses/MIT)
+#
 # libtwk_jni.so — the core plus its JNI shim, in one library.
 #
 # One file per ABI is what an app wants to ship, so the core is linked in

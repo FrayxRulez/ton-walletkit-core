@@ -1,4 +1,9 @@
 //
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // twk-bundlec — compile the JS bundle to QuickJS bytecode at build time.
 //
 // Usage: twk-bundlec <in.js> <out.h> [symbol]

@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Drives the Java binding against a real libtwk_jni, on a desktop JVM.
 //
 // The JNI layer is plain JNI — nothing about it is Android-specific — so running
