@@ -1,0 +1,523 @@
+{
+  "$comment": [
+    "The typed facade every binding exposes, described once.",
+    "",
+    "Bindings have three layers. The DTOs are generated from walletkit's own",
+    "TypeScript types (scripts/generate-api). The transport — P/Invoke, JNI, Swift",
+    "C interop — is inherently per-platform and hand-written. This file is the layer",
+    "in between: the kit-ios-shaped object model, which is pure mechanics and so is",
+    "generated for every language by scripts/generate-facade.mjs.",
+    "",
+    "Names are neutral camelCase; each emitter applies its own conventions (C#",
+    "PascalCase + Async, Swift async throws, Java CompletableFuture…). See",
+    "docs/BINDINGS.md."
+  ],
+
+  "types": {
+    "$comment": [
+      "Argument and return types. Anything not listed here is `dto:X` (a generated",
+      "walletkit model), `list<X>`, or `object:X` (another facade object, passed as",
+      "the id the ABI knows it by).",
+      "",
+      "The specials exist because they are the same in every binding:",
+      "  amount           an exact integer amount; walletkit sends it as a string",
+      "  mnemonic         the word list, wrapped so it cannot be confused with prose",
+      "  bytes            raw bytes; the ABI carries them as a JSON number array",
+      "  chainId          optional network id, defaulting to the configured one",
+      "  params           wallet parameters, which serialize themselves",
+      "  fakeSignature    an optional bool that becomes a signing-options object",
+      "  feature          a TON Connect feature"
+    ]
+  },
+
+  "objects": [
+    {
+      "name": "Signer",
+      "doc": "A key that can sign (kit-ios TONWalletSignerProtocol).",
+      "handle": "signerId",
+      "descriptor": "TonSignerDescriptor",
+      "properties": [
+        { "name": "publicKey", "type": "string", "doc": "Public key, 0x-prefixed hex." }
+      ],
+      "methods": [
+        {
+          "id": "signer.sign",
+          "name": "sign",
+          "abi": "sign",
+          "doc": "Signs raw bytes; returns a hex signature.",
+          "args": [{ "name": "data", "type": "bytes" }],
+          "returns": "string"
+        }
+      ]
+    },
+
+    {
+      "name": "Adapter",
+      "doc": [
+        "A wallet contract bound to a signer (kit-ios TONWalletAdapterProtocol).",
+        "It knows its address before it is registered with the kit, and it can sign —",
+        "but it cannot read the chain until it becomes a Wallet."
+      ],
+      "handle": "adapterId",
+      "descriptor": "TonAdapterDescriptor",
+      "properties": [
+        { "name": "identifier", "type": "string", "from": "walletId", "doc": "The wallet id this adapter derives (kit-ios identifier())." },
+        { "name": "publicKey", "type": "string", "doc": "Public key, 0x-prefixed hex." },
+        { "name": "network", "type": "dto:TONNetwork", "doc": "The network this wallet lives on." },
+        { "name": "address", "type": "string", "doc": "User-friendly address (UQ…/EQ…)." }
+      ],
+      "methods": [
+        {
+          "id": "adapter.stateInit",
+          "name": "stateInit",
+          "abi": "getStateInit",
+          "doc": "Deployment state init, a base64 BOC.",
+          "args": [],
+          "returns": "string"
+        },
+        {
+          "id": "adapter.signedSendTransaction",
+          "name": "signedSendTransaction",
+          "abi": "getSignedSendTransaction",
+          "doc": [
+            "Signs a transaction and returns the BOC.",
+            "fakeSignature produces a correctly shaped but unusable signature — right",
+            "for fee estimation, and what tests use so nothing can be broadcast by",
+            "accident."
+          ],
+          "args": [
+            { "name": "input", "type": "dto:TONTransactionRequest" },
+            { "name": "options", "type": "dto:TONSignedSendTransactionOptions", "optional": true }
+          ],
+          "returns": "string"
+        },
+        {
+          "id": "adapter.signedSignMessage",
+          "name": "signedSignMessage",
+          "abi": "getSignedSignMessage",
+          "doc": "Signs a transaction as a TON Connect signMessage response.",
+          "args": [
+            { "name": "input", "type": "dto:TONTransactionRequest" },
+            { "name": "options", "type": "dto:TONSignedSendTransactionOptions", "optional": true }
+          ],
+          "returns": "string"
+        },
+        {
+          "id": "adapter.signedSignData",
+          "name": "signedSignData",
+          "abi": "getSignedSignData",
+          "doc": "Signs prepared sign-data; returns a hex signature.",
+          "args": [
+            { "name": "input", "type": "dto:TONPreparedSignData" },
+            { "name": "fakeSignature", "type": "fakeSignature", "optional": true }
+          ],
+          "returns": "string"
+        },
+        {
+          "id": "adapter.signedTonProof",
+          "name": "signedTonProof",
+          "abi": "getSignedTonProof",
+          "doc": "Signs a ton_proof message; returns a hex signature.",
+          "args": [
+            { "name": "input", "type": "dto:TONProofMessage" },
+            { "name": "fakeSignature", "type": "fakeSignature", "optional": true }
+          ],
+          "returns": "string"
+        },
+        {
+          "id": "adapter.supportedFeatures",
+          "name": "supportedFeatures",
+          "abi": "getSupportedFeatures",
+          "doc": "TON Connect features this wallet advertises.",
+          "args": [],
+          "returns": "list<feature>"
+        }
+      ]
+    },
+
+    {
+      "name": "Wallet",
+      "extends": "Adapter",
+      "doc": [
+        "A wallet registered with the kit (kit-ios TONWalletProtocol).",
+        "",
+        "This is a handle, not storage: walletkit keeps wallets in memory only, so",
+        "after a restart the app rebuilds them from the persisted mnemonic."
+      ],
+      "handle": "walletId",
+      "descriptor": "TonWalletDescriptor",
+      "properties": [
+        { "name": "id", "type": "string", "from": "walletId", "doc": "The kit's wallet id (a base64 hash, not network:address)." }
+      ],
+      "methods": [
+        {
+          "id": "wallet.balance",
+          "name": "balance",
+          "abi": "getBalance",
+          "doc": "Current balance, in nanotons.",
+          "args": [],
+          "returns": "amount"
+        },
+        {
+          "id": "wallet.transferTonTransaction",
+          "name": "transferTonTransaction",
+          "abi": "createTransferTonTransaction",
+          "doc": [
+            "Builds an unsigned TON transfer. The recipient must be in user-friendly",
+            "form (UQ…/EQ…): a raw address passes the early check and is then rejected",
+            "with a message that names the transaction, not the address."
+          ],
+          "args": [{ "name": "request", "type": "dto:TONTransferRequest" }],
+          "returns": "dto:TONTransactionRequest"
+        },
+        {
+          "id": "wallet.transferMultiTonTransaction",
+          "name": "transferTonTransaction",
+          "abi": "createTransferMultiTonTransaction",
+          "doc": "Builds one transaction carrying several transfers.",
+          "args": [{ "name": "requests", "type": "list<dto:TONTransferRequest>" }],
+          "returns": "dto:TONTransactionRequest"
+        },
+        {
+          "id": "wallet.send",
+          "name": "send",
+          "abi": "sendTransaction",
+          "doc": "Signs and broadcasts. This spends real funds.",
+          "args": [{ "name": "transactionRequest", "type": "dto:TONTransactionRequest" }],
+          "returns": "dto:TONSendTransactionResponse"
+        },
+        {
+          "id": "wallet.preview",
+          "name": "preview",
+          "abi": "getTransactionPreview",
+          "doc": "Emulates a transaction: fees, balance changes, actions.",
+          "args": [
+            { "name": "transactionRequest", "type": "dto:TONTransactionRequest" },
+            { "name": "options", "type": "dto:TONTransactionPreviewOptions", "optional": true }
+          ],
+          "returns": "dto:TONTransactionEmulatedPreview"
+        },
+        {
+          "id": "wallet.transferNftTransaction",
+          "name": "transferNftTransaction",
+          "abi": "createTransferNftTransaction",
+          "doc": "Builds an NFT transfer.",
+          "args": [{ "name": "request", "type": "dto:TONNFTTransferRequest" }],
+          "returns": "dto:TONTransactionRequest"
+        },
+        {
+          "id": "wallet.transferNftRawTransaction",
+          "name": "transferNftTransaction",
+          "abi": "createTransferNftRawTransaction",
+          "doc": "Builds an NFT transfer from a raw message.",
+          "args": [{ "name": "request", "type": "dto:TONNFTRawTransferRequest" }],
+          "returns": "dto:TONTransactionRequest"
+        },
+        {
+          "id": "wallet.nfts",
+          "name": "nfts",
+          "abi": "getNfts",
+          "doc": "NFTs this wallet holds.",
+          "args": [{ "name": "request", "type": "dto:TONNFTsRequest", "optional": true }],
+          "returns": "dto:TONNFTsResponse"
+        },
+        {
+          "id": "wallet.nft",
+          "name": "nft",
+          "abi": "getNft",
+          "doc": "One NFT by address, or null when the wallet does not hold it.",
+          "args": [{ "name": "address", "type": "string" }],
+          "returns": "dto:TONNFT"
+        },
+        {
+          "id": "wallet.jettonBalance",
+          "name": "jettonBalance",
+          "abi": "getJettonBalance",
+          "doc": "Balance of one jetton, in its own smallest unit.",
+          "args": [{ "name": "jettonAddress", "type": "string" }],
+          "returns": "amount"
+        },
+        {
+          "id": "wallet.jettonWalletAddress",
+          "name": "jettonWalletAddress",
+          "abi": "getJettonWalletAddress",
+          "doc": "This wallet's jetton wallet address for a jetton master.",
+          "args": [{ "name": "jettonAddress", "type": "string" }],
+          "returns": "string"
+        },
+        {
+          "id": "wallet.transferJettonTransaction",
+          "name": "transferJettonTransaction",
+          "abi": "createTransferJettonTransaction",
+          "doc": "Builds a jetton transfer.",
+          "args": [{ "name": "request", "type": "dto:TONJettonsTransferRequest" }],
+          "returns": "dto:TONTransactionRequest"
+        },
+        {
+          "id": "wallet.jettons",
+          "name": "jettons",
+          "abi": "getJettons",
+          "doc": "Jettons this wallet holds.",
+          "args": [{ "name": "request", "type": "dto:TONJettonsRequest", "optional": true }],
+          "returns": "dto:TONJettonsResponse"
+        }
+      ]
+    },
+
+    {
+      "name": "Kit",
+      "doc": "The wallet kit: keys, wallets, and TON Connect (kit-ios TONWalletKit).",
+      "root": true,
+      "methods": [
+        {
+          "id": "kit.initialize",
+          "name": "initialize",
+          "abi": "initWalletKit",
+          "custom": "Sends the configuration and records that the kit is up.",
+          "doc": "Builds the kit inside the core.",
+          "args": [],
+          "returns": "void"
+        },
+        {
+          "id": "kit.generateMnemonic",
+          "name": "generateMnemonic",
+          "abi": "createMnemonic",
+          "doc": "Generates a 24-word TON mnemonic.",
+          "args": [],
+          "returns": "mnemonic"
+        },
+        {
+          "id": "kit.signerFromMnemonic",
+          "name": "signer",
+          "abi": "createSignerFromMnemonic",
+          "doc": [
+            "Creates a signer from a mnemonic. The app must store the mnemonic",
+            "securely: walletkit persists neither signers nor wallets."
+          ],
+          "args": [
+            { "name": "mnemonic", "type": "mnemonic" },
+            { "name": "type", "type": "string", "constant": "ton" }
+          ],
+          "returns": "object:Signer"
+        },
+        {
+          "id": "kit.signerFromPrivateKey",
+          "name": "signer",
+          "abi": "createSignerFromPrivateKey",
+          "doc": "Creates a signer from a raw private key.",
+          "args": [{ "name": "privateKey", "type": "bytes" }],
+          "returns": "object:Signer"
+        },
+        {
+          "id": "kit.createWallet",
+          "name": "createWallet",
+          "custom": "Composes generateMnemonic + signer + walletV5R1Adapter.",
+          "doc": [
+            "Generates a mnemonic and derives a V5R1 wallet from it in one step",
+            "(kit-ios createWallet). The wallet is not registered yet — pass the",
+            "adapter to add()."
+          ],
+          "args": [{ "name": "parameters", "type": "params:V5R1" }],
+          "returns": "creationResult"
+        },
+        {
+          "id": "kit.walletV5R1Adapter",
+          "name": "walletV5R1Adapter",
+          "abi": "createV5R1WalletAdapter",
+          "doc": "Derives a V5R1 wallet (the current default contract).",
+          "args": [
+            { "name": "signer", "type": "object:Signer" },
+            { "name": "parameters", "type": "params:V5R1" }
+          ],
+          "returns": "object:Adapter"
+        },
+        {
+          "id": "kit.walletV4R2Adapter",
+          "name": "walletV4R2Adapter",
+          "abi": "createV4R2WalletAdapter",
+          "doc": "Derives a V4R2 wallet.",
+          "args": [
+            { "name": "signer", "type": "object:Signer" },
+            { "name": "parameters", "type": "params:V4R2" }
+          ],
+          "returns": "object:Adapter"
+        },
+        {
+          "id": "kit.add",
+          "name": "add",
+          "abi": "addWallet",
+          "doc": "Registers an adapter, yielding a usable wallet.",
+          "args": [{ "name": "walletAdapter", "type": "object:Adapter" }],
+          "returns": "object:Wallet"
+        },
+        {
+          "id": "kit.wallet",
+          "name": "wallet",
+          "abi": "getWallet",
+          "doc": "One registered wallet by id, or null.",
+          "args": [{ "name": "walletId", "type": "string" }],
+          "returns": "object:Wallet"
+        },
+        {
+          "id": "kit.wallets",
+          "name": "wallets",
+          "abi": "getWallets",
+          "doc": "Every registered wallet.",
+          "args": [],
+          "returns": "list<object:Wallet>"
+        },
+        {
+          "id": "kit.remove",
+          "name": "remove",
+          "abi": "removeWallet",
+          "doc": "Unregisters a wallet. The chain is untouched.",
+          "args": [{ "name": "walletId", "type": "string" }],
+          "returns": "void"
+        },
+        {
+          "id": "kit.clearWallets",
+          "name": "clearWallets",
+          "abi": "clearWallets",
+          "doc": "Unregisters every wallet.",
+          "args": [],
+          "returns": "void"
+        },
+        {
+          "id": "kit.send",
+          "name": "send",
+          "custom": "Delegates to the wallet, which is what actually holds the handle.",
+          "doc": "Signs and broadcasts a transaction from a wallet.",
+          "args": [
+            { "name": "transaction", "type": "dto:TONTransactionRequest" },
+            { "name": "wallet", "type": "object:Wallet" }
+          ],
+          "returns": "dto:TONSendTransactionResponse"
+        },
+        {
+          "id": "kit.addressState",
+          "name": "addressState",
+          "abi": "getAddressState",
+          "doc": "Account state for any address: balance, status, last transaction. Needs no wallet.",
+          "args": [
+            { "name": "address", "type": "string" },
+            { "name": "chainId", "type": "chainId", "optional": true }
+          ],
+          "returns": "dto:TONAccountState"
+        },
+        {
+          "id": "kit.addressBalance",
+          "name": "addressBalance",
+          "abi": "getAddressBalance",
+          "custom": "Unwraps the core's {address, balance} reply.",
+          "doc": "Balance of any address, in nanotons.",
+          "args": [
+            { "name": "address", "type": "string" },
+            { "name": "chainId", "type": "chainId", "optional": true }
+          ],
+          "returns": "amount"
+        },
+        {
+          "id": "kit.addressTransactions",
+          "name": "addressTransactions",
+          "abi": "getAddressTransactions",
+          "doc": "Transaction history for any address.",
+          "remarks": [
+            "Currently throws for most addresses: walletkit's own response parser",
+            "(toTransactionsResponse) calls Base64ToHex on trace_external_hash, which",
+            "toncenter does not always send. Upstream limitation, not a transport",
+            "problem."
+          ],
+          "args": [
+            { "name": "address", "type": "string" },
+            { "name": "chainId", "type": "chainId", "optional": true },
+            { "name": "limit", "type": "int", "default": 10 },
+            { "name": "offset", "type": "int", "default": 0 }
+          ],
+          "returns": "dto:TONTransactionsResponse"
+        },
+        {
+          "id": "kit.connect",
+          "name": "connect",
+          "abi": "handleTonConnectUrl",
+          "custom": "Adds the tc:// scheme when the link arrives without one.",
+          "doc": "Handles a tc:// link. The dapp's request arrives as an event, not as the result of this call.",
+          "args": [{ "name": "url", "type": "string" }],
+          "returns": "void"
+        },
+        {
+          "id": "kit.sessions",
+          "name": "sessions",
+          "abi": "getSessions",
+          "doc": "Every live TON Connect session.",
+          "args": [],
+          "returns": "list<dto:TONConnectSession>"
+        },
+        {
+          "id": "kit.disconnect",
+          "name": "disconnect",
+          "abi": "disconnect",
+          "doc": "Ends a session.",
+          "args": [{ "name": "sessionId", "type": "string" }],
+          "returns": "void"
+        }
+      ]
+    }
+  ],
+
+  "requests": [
+    {
+      "name": "ConnectionRequest",
+      "eventType": "connectRequest",
+      "event": "TONConnectionRequestEvent",
+      "approve": "approveConnectRequest",
+      "reject": "rejectConnectRequest",
+      "custom": "Approving attaches the chosen wallet and may return the dapp's embedded follow-up request.",
+      "doc": "A dapp asking to connect (kit-ios TONWalletConnectionRequest)."
+    },
+    {
+      "name": "SendTransactionRequest",
+      "eventType": "transactionRequest",
+      "event": "TONSendTransactionRequestEvent",
+      "embedded": "TONEmbeddedSendTransactionRequestEvent",
+      "approve": "approveTransactionRequest",
+      "reject": "rejectTransactionRequest",
+      "response": "TONSendTransactionApprovalResponse",
+      "doc": "A dapp asking for a transaction (kit-ios TONWalletSendTransactionRequest).",
+      "approveDoc": "Signs and sends the transaction.",
+      "rejectDoc": "Refuses the transaction."
+    },
+    {
+      "name": "SignMessageRequest",
+      "eventType": "signMessageRequest",
+      "event": "TONSignMessageRequestEvent",
+      "embedded": "TONEmbeddedSignMessageRequestEvent",
+      "approve": "approveSignMessageRequest",
+      "reject": "rejectSignMessageRequest",
+      "response": "TONSignMessageApprovalResponse",
+      "doc": "A dapp asking for a signed message (kit-ios TONWalletSignMessageRequest).",
+      "approveDoc": "Signs the message.",
+      "rejectDoc": "Refuses to sign."
+    },
+    {
+      "name": "SignDataRequest",
+      "eventType": "signDataRequest",
+      "event": "TONSignDataRequestEvent",
+      "embedded": "TONEmbeddedSignDataRequestEvent",
+      "approve": "approveSignDataRequest",
+      "reject": "rejectSignDataRequest",
+      "response": "TONSignDataApprovalResponse",
+      "doc": "A dapp asking for signed data (kit-ios TONWalletSignDataRequest).",
+      "approveDoc": "Signs the data.",
+      "rejectDoc": "Refuses to sign."
+    }
+  ],
+
+  "events": {
+    "doc": "One event from the bridge (kit-ios TONWalletKitEvent).",
+    "disconnect": {
+      "eventType": "disconnect",
+      "event": "TONDisconnectionEvent",
+      "doc": "A dapp (or the wallet) ended a session."
+    }
+  }
+}

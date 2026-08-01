@@ -323,6 +323,48 @@ namespace Ton.WalletKit
         }
     }
 
+    /// <summary>
+    /// Bytes as the ABI carries them: an array of numbers.
+    ///
+    /// Without this System.Text.Json would write base64, which the JS side would
+    /// hand to Uint8Array.from and silently turn into nonsense — a wrong signing
+    /// key rather than an error.
+    /// </summary>
+    internal sealed class TonBytesConverter : JsonConverter<byte[]>
+    {
+        /// <inheritdoc/>
+        public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return Convert.FromBase64String(reader.GetString());
+            }
+
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                return null;
+            }
+
+            var bytes = new List<byte>();
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            {
+                bytes.Add(reader.GetByte());
+            }
+            return bytes.ToArray();
+        }
+
+        /// <inheritdoc/>
+        public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach (byte b in value)
+            {
+                writer.WriteNumberValue(b);
+            }
+            writer.WriteEndArray();
+        }
+    }
+
     /// <summary>Reads and writes a TON Connect feature.</summary>
     internal sealed class TonFeatureConverter : JsonConverter<TonFeature>
     {

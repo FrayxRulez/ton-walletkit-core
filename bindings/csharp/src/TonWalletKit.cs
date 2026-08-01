@@ -1,13 +1,14 @@
 //
-// The typed entry point (kit-ios TONWalletKit).
+// The typed entry point (kit-ios TONWalletKit): the half that is not mechanical.
 //
-// Method for method the same API, over an ABI that can only carry JSON: object
-// arguments become the id the core knows them by, and every payload is one of
-// the generated walletkit DTOs.
+// Everything that is just "call an ABI method and read the result" is generated
+// into TonWalletKit.g.cs from api/facade.json. What stays here is the transport,
+// the event plumbing, and the few methods whose bodies are genuinely bespoke —
+// each marked `custom` in the schema so the two halves cannot drift apart.
 //
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Ton.WalletKit.Api.Model;
 
@@ -21,7 +22,7 @@ namespace Ton.WalletKit
     }
 
     /// <summary>The wallet kit: keys, wallets, and TON Connect.</summary>
-    public sealed class TonWalletKit : IDisposable
+    public sealed partial class TonWalletKit : IDisposable
     {
         private readonly WalletKitClient _client;
         private readonly WalletKitDelegates _delegates;
@@ -36,7 +37,7 @@ namespace Ton.WalletKit
         /// <summary>True once <see cref="InitializeAsync"/> has completed.</summary>
         public bool IsInitialized
         {
-            get { return System.Threading.Volatile.Read(ref _initialized) != 0; }
+            get { return Volatile.Read(ref _initialized) != 0; }
         }
 
         /// <summary>How this kit was configured.</summary>
@@ -77,7 +78,43 @@ namespace Ton.WalletKit
             return TonJson.Result<T>(envelope);
         }
 
-        // ---- lifecycle ---------------------------------------------------------
+        // ---- the ids the ABI addresses objects by ------------------------------
+
+        /// <summary>The core's id for an adapter or wallet this kit created.</summary>
+        internal string Handle(ITonWalletAdapter adapter, string parameterName)
+        {
+            var owned = adapter as TonWalletAdapter;
+            if (owned == null)
+            {
+                throw new ArgumentException("The adapter must come from this kit.", parameterName);
+            }
+            return owned.Handle;
+        }
+
+        /// <summary>The core's id for a signer this kit created.</summary>
+        internal string SignerId(ITonWalletSigner signer, string parameterName)
+        {
+            var owned = signer as TonWalletSigner;
+            if (owned == null)
+            {
+                throw new ArgumentException("The signer must come from this kit.", parameterName);
+            }
+            return owned.Handle;
+        }
+
+        /// <summary>The caller's network, or the first one configured.</summary>
+        internal string ChainId(string chainId)
+        {
+            if (chainId != null)
+            {
+                return chainId;
+            }
+
+            var networks = _configuration.NetworkConfigurations;
+            return networks != null && networks.Count > 0 ? networks[0].ChainId : null;
+        }
+
+        // ---- custom methods (declared in api/facade.json) ----------------------
 
         /// <summary>
         /// Builds the kit inside the core. Safe to call more than once; the second
@@ -86,45 +123,8 @@ namespace Ton.WalletKit
         public async Task InitializeAsync()
         {
             await CallAsync("initWalletKit", TonJson.ArgsRaw(_configuration.ToJson())).ConfigureAwait(false);
-            System.Threading.Volatile.Write(ref _initialized, 1);
+            Volatile.Write(ref _initialized, 1);
         }
-
-        // ---- keys --------------------------------------------------------------
-
-        /// <summary>Generates a 24-word TON mnemonic.</summary>
-        public async Task<TonMnemonic> GenerateMnemonicAsync()
-        {
-            var words = await InvokeAsync<List<string>>("createMnemonic", TonJson.Args()).ConfigureAwait(false);
-            return new TonMnemonic(words ?? new List<string>());
-        }
-
-        /// <summary>
-        /// Creates a signer from a mnemonic. The app must store the mnemonic
-        /// securely: walletkit persists neither signers nor wallets.
-        /// </summary>
-        public async Task<ITonWalletSigner> SignerAsync(TonMnemonic mnemonic)
-        {
-            if (mnemonic == null)
-            {
-                throw new ArgumentNullException(nameof(mnemonic));
-            }
-
-            var descriptor = await InvokeAsync<TonSignerDescriptor>(
-                "createSignerFromMnemonic",
-                TonJson.Args(new List<string>(mnemonic.Value), "ton")).ConfigureAwait(false);
-            return new TonWalletSigner(this, descriptor);
-        }
-
-        /// <summary>Creates a signer from a raw private key.</summary>
-        public async Task<ITonWalletSigner> SignerAsync(byte[] privateKey)
-        {
-            var descriptor = await InvokeAsync<TonSignerDescriptor>("createSignerFromPrivateKey",
-                                                                    TonJson.Args(privateKey))
-                                       .ConfigureAwait(false);
-            return new TonWalletSigner(this, descriptor);
-        }
-
-        // ---- wallets -----------------------------------------------------------
 
         /// <summary>
         /// Generates a mnemonic and derives a V5R1 wallet from it in one step
@@ -139,85 +139,6 @@ namespace Ton.WalletKit
             return new TonWalletCreationResult(mnemonic, adapter);
         }
 
-        /// <summary>Derives a V5R1 wallet (the current default contract).</summary>
-        public Task<ITonWalletAdapter> WalletV5R1AdapterAsync(ITonWalletSigner signer,
-                                                              TonV5R1WalletParameters parameters)
-        {
-            return AdapterAsync("createV5R1WalletAdapter", signer, parameters);
-        }
-
-        /// <summary>Derives a V4R2 wallet.</summary>
-        public Task<ITonWalletAdapter> WalletV4R2AdapterAsync(ITonWalletSigner signer,
-                                                              TonV4R2WalletParameters parameters)
-        {
-            return AdapterAsync("createV4R2WalletAdapter", signer, parameters);
-        }
-
-        private async Task<ITonWalletAdapter> AdapterAsync(string method, ITonWalletSigner signer,
-                                                           TonV4R2WalletParameters parameters)
-        {
-            var owned = signer as TonWalletSigner;
-            if (owned == null)
-            {
-                throw new ArgumentException("The signer must come from this kit.", nameof(signer));
-            }
-
-            string args = TonJson.ArgsRaw(TonJson.Serialize(owned.SignerId),
-                                          (parameters ?? new TonV4R2WalletParameters(null)).ToJson());
-            var descriptor = await InvokeAsync<TonAdapterDescriptor>(method, args).ConfigureAwait(false);
-            return new TonWalletAdapter(this, descriptor);
-        }
-
-        /// <summary>Registers an adapter, yielding a usable wallet.</summary>
-        public async Task<ITonWallet> AddAsync(ITonWalletAdapter walletAdapter)
-        {
-            var owned = walletAdapter as TonWalletAdapter;
-            if (owned == null)
-            {
-                throw new ArgumentException("The adapter must come from this kit.", nameof(walletAdapter));
-            }
-
-            var descriptor = await InvokeAsync<TonWalletDescriptor>("addWallet", TonJson.Args(owned.Handle))
-                                       .ConfigureAwait(false);
-            return new TonWallet(this, descriptor);
-        }
-
-        /// <summary>One registered wallet by id, or null.</summary>
-        public async Task<ITonWallet> WalletAsync(string walletId)
-        {
-            var descriptor = await InvokeAsync<TonWalletDescriptor>("getWallet", TonJson.Args(walletId))
-                                       .ConfigureAwait(false);
-            return descriptor == null ? null : new TonWallet(this, descriptor);
-        }
-
-        /// <summary>Every registered wallet.</summary>
-        public async Task<IReadOnlyList<ITonWallet>> WalletsAsync()
-        {
-            var descriptors = await InvokeAsync<List<TonWalletDescriptor>>("getWallets", TonJson.Args())
-                                        .ConfigureAwait(false);
-            var wallets = new List<ITonWallet>(descriptors == null ? 0 : descriptors.Count);
-            if (descriptors != null)
-            {
-                foreach (var descriptor in descriptors)
-                {
-                    wallets.Add(new TonWallet(this, descriptor));
-                }
-            }
-            return wallets;
-        }
-
-        /// <summary>Unregisters a wallet. The chain is untouched.</summary>
-        public Task RemoveAsync(string walletId)
-        {
-            return CallAsync("removeWallet", TonJson.Args(walletId));
-        }
-
-        /// <summary>Unregisters every wallet.</summary>
-        public Task ClearWalletsAsync()
-        {
-            return CallAsync("clearWallets", TonJson.Args());
-        }
-
         /// <summary>Signs and broadcasts a transaction from a wallet.</summary>
         public Task<TONSendTransactionResponse> SendAsync(TONTransactionRequest transaction, ITonWallet wallet)
         {
@@ -229,16 +150,6 @@ namespace Ton.WalletKit
             return wallet.SendAsync(transaction);
         }
 
-        // ---- watch-only --------------------------------------------------------
-        // Not in kit-ios, where this lives on the API client; the core exposes it
-        // directly because inspecting an address needs no wallet or signer.
-
-        /// <summary>Account state for any address: balance, status, last transaction.</summary>
-        public Task<TONAccountState> AddressStateAsync(string address, string chainId = null)
-        {
-            return InvokeAsync<TONAccountState>("getAddressState", TonJson.Args(address, ChainId(chainId)));
-        }
-
         /// <summary>Balance of any address, in nanotons.</summary>
         public async Task<TonAmount> AddressBalanceAsync(string address, string chainId = null)
         {
@@ -248,36 +159,6 @@ namespace Ton.WalletKit
                                   .ConfigureAwait(false);
             return TonAmount.FromNanotons(reply == null ? null : reply.Balance);
         }
-
-        /// <summary>
-        /// Transaction history for any address.
-        /// </summary>
-        /// <remarks>
-        /// Currently throws for most addresses: walletkit's own response parser
-        /// (toTransactionsResponse) rejects well-formed toncenter replies with
-        /// "Invalid hash: data is required". The raw endpoint returns valid data,
-        /// so this is an upstream limitation, not a transport problem.
-        /// </remarks>
-        public Task<TONTransactionsResponse> AddressTransactionsAsync(string address, string chainId = null,
-                                                                      int limit = 10, int offset = 0)
-        {
-            string args = TonJson.ArgsRaw(TonJson.Serialize(address), TonJson.Serialize(ChainId(chainId)),
-                                          TonJson.Serialize(limit), TonJson.Serialize(offset));
-            return InvokeAsync<TONTransactionsResponse>("getAddressTransactions", args);
-        }
-
-        private string ChainId(string chainId)
-        {
-            if (chainId != null)
-            {
-                return chainId;
-            }
-
-            var networks = _configuration.NetworkConfigurations;
-            return networks != null && networks.Count > 0 ? networks[0].ChainId : null;
-        }
-
-        // ---- TON Connect -------------------------------------------------------
 
         /// <summary>
         /// Handles a tc:// link. The dapp's request arrives as an event, not as
@@ -292,19 +173,7 @@ namespace Ton.WalletKit
             return CallAsync("handleTonConnectUrl", TonJson.Args(url));
         }
 
-        /// <summary>Every live TON Connect session.</summary>
-        public async Task<IReadOnlyList<TONConnectSession>> SessionsAsync()
-        {
-            var sessions = await InvokeAsync<List<TONConnectSession>>("getSessions", TonJson.Args())
-                                     .ConfigureAwait(false);
-            return sessions ?? (IReadOnlyList<TONConnectSession>)new TONConnectSession[0];
-        }
-
-        /// <summary>Ends a session.</summary>
-        public Task DisconnectAsync(string sessionId)
-        {
-            return CallAsync("disconnect", TonJson.Args(sessionId));
-        }
+        // ---- events ------------------------------------------------------------
 
         /// <summary>Adds an events handler (kit-ios add(eventsHandler:)).</summary>
         public void AddEventsHandler(ITonBridgeEventsHandler handler)
@@ -331,8 +200,6 @@ namespace Ton.WalletKit
                 _handlers.Remove(handler);
             }
         }
-
-        // ---- events ------------------------------------------------------------
 
         private void OnEventReceived(object sender, WalletKitEventArgs e)
         {
@@ -464,6 +331,32 @@ namespace Ton.WalletKit
             _client.EventReceived -= OnEventReceived;
             _client.Dispose();    // joins the receive thread and destroys the core client
             _delegates.Dispose(); // only safe once nothing can call back
+        }
+    }
+
+    /// <summary>The custom half of the connect request: approving is not mechanical.</summary>
+    public sealed partial class TonWalletConnectionRequest
+    {
+        /// <summary>
+        /// Connects <paramref name="wallet"/> to the dapp. Returns a follow-up
+        /// request when the dapp embedded one in the connect (a transaction to
+        /// approve straight away), otherwise null.
+        /// </summary>
+        public async Task<TonWalletKitEvent> ApproveAsync(ITonWallet wallet,
+                                                          TONConnectionApprovalResponse response = null)
+        {
+            if (wallet == null)
+            {
+                throw new ArgumentNullException(nameof(wallet));
+            }
+
+            // The wallet the user chose. walletkit rejects an approval without it.
+            Event.WalletId = wallet.Id;
+            Event.WalletAddress = wallet.Address;
+
+            string envelope = await _kit.CallAsync("approveConnectRequest", TonJson.Args(Event, response))
+                                        .ConfigureAwait(false);
+            return _kit.EmbeddedEvent(envelope);
         }
     }
 }

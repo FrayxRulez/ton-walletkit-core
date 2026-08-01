@@ -32,6 +32,7 @@ namespace Ton.WalletKit
             options.Converters.Add(new TonWalletDescriptorConverter());
             options.Converters.Add(new TonAddressBalanceConverter());
             options.Converters.Add(new TonFeatureConverter());
+            options.Converters.Add(new TonBytesConverter());
             return options;
         }
 
@@ -80,6 +81,23 @@ namespace Ton.WalletKit
                 JsonSerializer.Serialize(writer, first, Options);
                 JsonSerializer.Serialize(writer, second, Options);
                 JsonSerializer.Serialize(writer, third, Options);
+                writer.WriteEndArray();
+                writer.Flush();
+                return Encoding.UTF8.GetString(buffer.ToArray());
+            }
+        }
+
+        /// <summary>A four-argument list.</summary>
+        public static string Args<T1, T2, T3, T4>(T1 first, T2 second, T3 third, T4 fourth)
+        {
+            using (var buffer = new MemoryStream())
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartArray();
+                JsonSerializer.Serialize(writer, first, Options);
+                JsonSerializer.Serialize(writer, second, Options);
+                JsonSerializer.Serialize(writer, third, Options);
+                JsonSerializer.Serialize(writer, fourth, Options);
                 writer.WriteEndArray();
                 writer.Flush();
                 return Encoding.UTF8.GetString(buffer.ToArray());
