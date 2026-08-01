@@ -28,7 +28,11 @@ public final class TonMnemonic {
     }
 
     public static TonMnemonic parse(String value) {
-        return new TonMnemonic(Arrays.asList(value.trim().split("\s+")));
+        // "\\s+", not "\s+": the latter is a Java 15 string escape meaning one
+        // literal space, so it compiled on a modern JDK and split on spaces
+        // alone — a mnemonic pasted with a newline or tab would have come back
+        // with a word glued to the next one.
+        return new TonMnemonic(Arrays.asList(value.trim().split("\\s+")));
     }
 
     public List<String> getValue() {

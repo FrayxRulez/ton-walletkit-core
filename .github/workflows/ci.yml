@@ -203,7 +203,10 @@ jobs:
           mkdir -p build-jni
           curl -sSLo build-jni/json.jar \
             https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
-          javac -nowarn -cp build-jni/json.jar -d build-jni \
+          # --release 8 matches what Gradle compiles the AAR at (Telegram Android
+          # is Java 8). Without it this passes on a modern JDK and Gradle then
+          # rejects a language feature Android will not take.
+          javac -nowarn --release 8 -cp build-jni/json.jar -d build-jni \
                 $(find bindings/android/src/main/java -name '*.java') \
                 bindings/android/test/JniSmoke.java bindings/android/test/DtoSmoke.java
           java -cp "build-jni:build-jni/json.jar" DtoSmoke
