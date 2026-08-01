@@ -26,11 +26,15 @@ public interface WalletKitHost {
         /**
          * Performs one request.
          *
+         * @param token       identifies this request; {@link #cancel} names the
+         *                    same value, so a host that wants to support
+         *                    cancellation keeps its in-flight work under it
          * @param headersJson a flat JSON object of request headers
          * @param body        the request body, or null
          * @param completion  answer exactly once
          */
-        void send(String method, String url, String headersJson, String body, HttpCompletion completion);
+        void send(long token, String method, String url, String headersJson, String body,
+                  HttpCompletion completion);
 
         /** The core no longer wants the answer. Best-effort. */
         void cancel(long token);
@@ -49,7 +53,14 @@ public interface WalletKitHost {
      * <p>Unlike HTTP this is multi-shot: one open, many events, one close.
      */
     interface Sse {
-        void open(String url, String headersJson, SseSink sink);
+        /**
+         * Opens one stream.
+         *
+         * @param token identifies this stream; {@link #close} names the same
+         *              value, and a stream that cannot be closed is a leaked
+         *              thread and socket per TON Connect session
+         */
+        void open(long token, String url, String headersJson, SseSink sink);
 
         void close(long token);
     }

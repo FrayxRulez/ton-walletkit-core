@@ -139,6 +139,92 @@ jobs:
           TWK_JS_BUDGET_MS: '600000'
         run: ctest --test-dir build --output-on-failure --timeout 900
 
+  binding-android:
+    name: Android AAR
+    runs-on: ubuntu-latest
+    # Produces the artifact the binding is actually shared as. Telegram Android
+    # is the consumer this exists for, so the settings match theirs: minSdk 21,
+    # c++_static, NDK r27.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - run: npm ci && npm run build
+        working-directory: js
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build libcurl4-openssl-dev
+
+      - name: Install NDK r27
+        # Pinned to Telegram Android's ndkVersion rather than whatever the image
+        # ships: c++_static means the STL is not shared, but keeping the compiler
+        # the same removes one variable from any crash report they send back.
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
+
+      - name: Build a host twk-bundlec
+        # The bytecode step needs a tool that runs on the build machine; without
+        # it the bundle is embedded as source and startup costs ~280ms more.
+        run: |
+          cmake -B build-host -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-host --target twk-bundlec
+
+      - name: Verify the JNI layer on a desktop JVM
+        # The binding's real test: no emulator, but it runs the actual core
+        # through the actual JNI shim and derives the golden address. Only
+        # src/main/java compiles here — src/android/java needs a Context.
+        run: |
+          cmake --build build-host --target twk_jni
+          mkdir -p build-jni
+          curl -sSLo build-jni/gson.jar \
+            https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar
+          javac -nowarn -cp build-jni/gson.jar -d build-jni \
+                $(find bindings/android/src/main/java -name '*.java') \
+                bindings/android/test/JniSmoke.java
+          java -Djava.library.path=build-host/bin -cp "build-jni:build-jni/gson.jar" JniSmoke
+
+      - name: Cross-build libtwk_jni.so
+        run: |
+          export TWK_BUNDLEC="$PWD/build-host/bin/twk-bundlec"
+          scripts/android-build.sh
+
+      # Pinned rather than using whatever Gradle the image ships: AGP 8.5 wants
+      # Gradle 8.x, and an image that moves to Gradle 9 would break this job with
+      # no change of ours.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Assemble the AAR
+        run: gradle --no-daemon assembleRelease
+        working-directory: bindings/android
+
+      - name: Check what shipped
+        # An AAR that quietly lost an ABI still builds and still installs; it
+        # fails at System.loadLibrary on whichever device nobody tested.
+        run: |
+          aar=bindings/android/build/outputs/aar/ton-walletkit-release.aar
+          unzip -l "$aar"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            unzip -l "$aar" | grep -q "jni/$abi/libtwk_jni.so" || { echo "missing $abi"; exit 1; }
+          done
+          unzip -l "$aar" | grep -q 'classes.jar' || { echo 'no classes.jar'; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ton-walletkit-aar
+          path: bindings/android/build/outputs/aar/*.aar
+          if-no-files-found: error
+
   binding-csharp:
     name: C# binding
     runs-on: windows-latest

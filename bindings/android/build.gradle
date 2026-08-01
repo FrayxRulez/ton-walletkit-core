@@ -1,0 +1,105 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
+// Packages the Android binding as an .aar.
+//
+// The native libraries are NOT built here. scripts/android-build.sh cross-builds
+// libtwk_jni.so per ABI first, and this only packages the result — which keeps
+// the NDK, CMake and Node out of the Gradle build, so assembling the AAR needs a
+// JDK and the Android SDK and nothing else. It also means the same .so that was
+// tested is the one that ships, rather than a second build of it.
+//
+//   ANDROID_NDK_HOME=… ../../scripts/android-build.sh
+//   gradle assembleRelease        -> build/outputs/aar/ton-walletkit-release.aar
+
+plugins {
+    id 'com.android.library' version '8.5.2'
+}
+
+android {
+    namespace 'org.ton.walletkit'
+    compileSdk 34
+
+    defaultConfig {
+        // 21 is Telegram Android's floor, and the binding exists to be usable
+        // there. It is also why this is Java 8 with callbacks rather than
+        // CompletableFuture, which needs 24.
+        minSdk 21
+        targetSdk 34
+
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            // Two source dirs on purpose. src/main/java is Android-free — the
+            // whole binding except the reference host — so it compiles and runs
+            // on a desktop JVM, which is how the JNI layer is tested without an
+            // emulator (bindings/android/test/JniSmoke.java). Anything that
+            // needs a Context lives in src/android/java and is packaged here.
+            java.srcDirs = ['src/main/java', 'src/android/java']
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+        }
+    }
+
+    // The .so files are already stripped by the build script, and AGP would
+    // otherwise want its own NDK install just to strip them again. `packaging`,
+    // not the old `packagingOptions`, which AGP 8 deprecated.
+    packaging {
+        jniLibs {
+            keepDebugSymbols += ['**/libtwk_jni.so']
+        }
+    }
+
+    buildTypes {
+        release {
+            // A library must not run R8: the consuming app does that, which is
+            // what consumer-rules.pro is for.
+            minifyEnabled false
+        }
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+}
+
+dependencies {
+    // The generated DTOs are Gson models. `api`, not `implementation`: a consumer
+    // resolving this through Maven needs Gson on its own compile classpath too.
+    // A consumer that just drops the .aar into libs/ gets no transitive
+    // dependencies at all and has to add this line itself — see README.md.
+    api 'com.google.code.gson:gson:2.10.1'
+}
+
+// Fails early and clearly rather than shipping an .aar with no native code in
+// it, which fails at System.loadLibrary on a device instead.
+tasks.register('checkNativeLibraries') {
+    doLast {
+        def abis = file('src/main/jniLibs').listFiles()?.findAll { it.isDirectory() } ?: []
+        def present = abis.findAll { new File(it, 'libtwk_jni.so').exists() }.collect { it.name }
+        if (present.isEmpty()) {
+            throw new GradleException(
+                'no libtwk_jni.so under src/main/jniLibs/<abi>/.\n' +
+                'Build them first:  ANDROID_NDK_HOME=<ndk> ../../scripts/android-build.sh')
+        }
+        logger.lifecycle("ton-walletkit: packaging ABIs ${present.sort().join(', ')}")
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'preBuild') {
+        task.dependsOn 'checkNativeLibraries'
+    }
+}

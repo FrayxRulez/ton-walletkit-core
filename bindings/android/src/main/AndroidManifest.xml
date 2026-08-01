@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) Fela Ameghino 2026
+
+  Distributed under the MIT License. (See accompanying file LICENSE or copy at
+  https://opensource.org/licenses/MIT)
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      The kit talks to toncenter and to TON Connect relays. A host that routes
+      through the app's own stack still needs this; it is declared here so an app
+      cannot forget it and get an unexplained transport failure.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+</manifest>

@@ -41,5 +41,13 @@ obj/
 # upstream reference clones (scripts/upstream.mjs)
 /.upstream/
 build-java/
-android/jniLibs/
 build-android*/
+build-host/
+build-jni/
+
+# Android binding: the .so files are build output staged for packaging, and the
+# Gradle build is a normal Gradle build.
+/bindings/android/src/main/jniLibs/
+/bindings/android/build/
+/bindings/android/.gradle/
+/bindings/android/local.properties

@@ -275,7 +275,7 @@ public final class JniSmoke {
         }
 
         @Override
-        public void send(String method, String url, String headersJson, String body,
+        public void send(long token, String method, String url, String headersJson, String body,
                          final HttpCompletion completion) {
             synchronized (requests) {
                 requests.add(url);

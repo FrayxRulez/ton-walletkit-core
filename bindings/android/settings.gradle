@@ -1,0 +1,26 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
+// A standalone Gradle build, not a module of some app: the binding is consumed
+// as an .aar, and the repository has no app to attach it to.
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'ton-walletkit'

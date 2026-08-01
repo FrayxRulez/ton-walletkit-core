@@ -47,7 +47,7 @@ final class HostBridge {
             return;
         }
 
-        http.send(string(method), string(url), string(headersJson), string(body),
+        http.send(token, string(method), string(url), string(headersJson), string(body),
                 new WalletKitHost.HttpCompletion() {
                     @Override
                     public void respond(int status, String headersJson, String body) {
@@ -75,7 +75,7 @@ final class HostBridge {
             return;
         }
 
-        sse.open(string(url), string(headersJson), new WalletKitHost.SseSink() {
+        sse.open(token, string(url), string(headersJson), new WalletKitHost.SseSink() {
             @Override
             public void event(String json) {
                 Native.sseEvent(client, token, bytes(json));

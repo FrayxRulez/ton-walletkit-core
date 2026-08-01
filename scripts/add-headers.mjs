@@ -1,3 +1,9 @@
+//
+// Copyright (c) Fela Ameghino 2026
+//
+// Distributed under the MIT License. (See accompanying file LICENSE or copy at
+// https://opensource.org/licenses/MIT)
+//
 // Adds the license header to every source file that should carry one.
 //
 //   node scripts/add-headers.mjs          add what is missing
