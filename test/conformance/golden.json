@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "What every binding must produce, given the same inputs.",
+    "",
+    "The steps are short enough to read as code in each language (see",
+    "bindings/csharp/test/InteropSmoke for the reference), but the values are not",
+    "a matter of taste: a binding that derives a different address from this",
+    "mnemonic has a broken crypto or encoding path, and one that reports a",
+    "different balance from this recorded reply has a broken transport.",
+    "",
+    "docs/BINDINGS.md §5 lists the behaviours to check alongside these values."
+  ],
+
+  "network": {
+    "chainId": "-3",
+    "endpoint": "https://testnet.toncenter.com"
+  },
+
+  "mnemonic": [
+    "pulp", "meat", "tenant", "multiply", "number", "exile", "dust", "fringe",
+    "topic", "camp", "crew", "slice", "grain", "enrich", "harsh", "bracket",
+    "coffee", "snow", "few", "vivid", "run", "grape", "follow", "until"
+  ],
+
+  "derived": {
+    "$comment": "From the mnemonic above, on chain -3, with the V5R1 contract and default parameters.",
+    "publicKey": "0x544ff9e6747e1527976b6dd3ac52b9e15666aba85e4bea632d9ce5154c4593d2",
+    "address": "UQC3YHz4vE05p5xbFL2WknFtK5Lu-Y-x_QE-xB-0zABGTqcc",
+    "walletId": "i6/dYOG7Pv4lx9x66vnzscps413zL9CPdbxGfDUTXTQ="
+  },
+
+  "httpFixture": {
+    "$comment": [
+      "The host delegate answers every request with this, so no test needs the",
+      "network and every binding sees the same chain state. It is a real",
+      "toncenter /api/v3/addressInformation reply."
+    ],
+    "status": 200,
+    "headers": { "content-type": "application/json" },
+    "body": "{\"balance\":\"110576459116021734\",\"status\":\"active\",\"last_transaction_lt\":\"36612000000003\",\"last_transaction_hash\":\"YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3OA==\"}"
+  },
+
+  "expected": {
+    "balanceNanotons": "110576459116021734",
+    "accountStatus": "active",
+    "transfer": {
+      "$comment": "A transfer of transferAmount to the wallet's own address, with a comment.",
+      "transferAmount": "1000000",
+      "messageCount": 1,
+      "signedBocPrefix": "te6",
+      "stateInitPrefix": "te6"
+    },
+    "unicodeEcho": "приветلاسلام😀",
+    "unknownMethodError": "unknown method"
+  }
+}

@@ -3,6 +3,8 @@
 // the typed facade, where every payload is a generated DTO.
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Ton.WalletKit;
@@ -16,9 +18,13 @@ void Check(string name, bool ok, string detail = null)
 }
 static string Truncate(string s) => s is null ? "(null)" : (s.Length > 90 ? s.Substring(0, 90) : s);
 
+// The values every binding must reproduce (test/conformance/golden.json), so the
+// numbers below are shared rather than this harness's own opinion.
+var golden = Golden.Load();
+
 // A test-double host: proves the delegate block, struct layout and reverse
 // callbacks work without needing TDLib or PasswordVault.
-var host = new FakeHost();
+var host = new FakeHost(golden);
 using var delegates = new WalletKitDelegates(host);
 using var client = new WalletKitClient(delegates.Handle, IntPtr.Zero);
 
@@ -30,7 +36,7 @@ var echo = await client.SendAsync("echo", "[\"hello from C#\"]");
 Check("round trip", echo != null && echo.Contains("hello from C#"), echo);
 
 // 2. UTF-8 marshalling: default ANSI marshalling would mangle these.
-const string unicode = "приветلاسلام😀";
+string unicode = golden.String("expected", "unicodeEcho");
 var utf8 = await client.SendAsync("echo", "[\"" + unicode + "\"]");
 Check("utf-8 survives the ABI", utf8 != null && utf8.Contains(unicode), utf8);
 
@@ -42,7 +48,8 @@ try
 }
 catch (WalletKitException ex)
 {
-    Check("error faults the task", ex.Message.Contains("unknown method"), ex.Message);
+    Check("error faults the task",
+          ex.Message.Contains(golden.String("expected", "unknownMethodError")), ex.Message);
 }
 
 // 4. Concurrency: many in-flight requests, each answered with its own result.
@@ -70,7 +77,8 @@ Check("unsolicited event delivered", Volatile.Read(ref events) > 0, $"{events} e
 await client.SendAsync("initWalletKit", "[{\"networks\":[{\"chainId\":\"-3\",\"endpoint\":\"https://testnet.toncenter.com\"}]}]");
 var balance = await client.SendAsync("getAddressBalance",
     "[\"-1:3333333333333333333333333333333333333333333333333333333333333333\",\"-3\"]");
-Check("http delegate served walletkit", balance != null && balance.Contains("110576459116021734"), balance);
+Check("http delegate served walletkit",
+      balance != null && balance.Contains(golden.String("expected", "balanceNanotons")), balance);
 Check("host saw the request", host.Requests.Count > 0 && host.Requests[0].Contains("addressInformation"),
       host.Requests.Count > 0 ? host.Requests[0] : "(none)");
 
@@ -110,31 +118,37 @@ var configuration = new TonWalletKitConfiguration
     AppVersion = "0.0.1",
 };
 
-using (var kit = new TonWalletKit(new FakeHost(), configuration))
+using (var kit = new TonWalletKit(new FakeHost(golden), configuration))
 {
     await kit.InitializeAsync();
     Check("facade: initialize", kit.IsInitialized);
 
-    var mnemonic = await kit.GenerateMnemonicAsync();
-    Check("facade: mnemonic -> 24 words", mnemonic.Value.Count == 24, mnemonic.ToString());
+    var generated = await kit.GenerateMnemonicAsync();
+    Check("facade: mnemonic -> 24 words", generated.Value.Count == 24, generated.ToString());
 
+    // The golden mnemonic, so the address below is a fixed value every binding
+    // must agree on rather than whatever this run happened to generate.
+    var mnemonic = new TonMnemonic(golden.Strings("mnemonic"));
     var signer = await kit.SignerAsync(mnemonic);
-    Check("facade: signer has a public key", !string.IsNullOrEmpty(signer.PublicKey), signer.PublicKey);
+    Check("facade: signer derives the golden public key",
+          signer.PublicKey == golden.String("derived", "publicKey"), signer.PublicKey);
 
     var adapter = await kit.WalletV5R1AdapterAsync(signer, new TonV5R1WalletParameters(testnet));
-    Check("facade: adapter derives an address", adapter.Address?.StartsWith("UQ") == true, adapter.Address);
+    Check("facade: adapter derives the golden address",
+          adapter.Address == golden.String("derived", "address"), adapter.Address);
     Check("facade: adapter reports its network", adapter.Network?.ChainId == "-3", adapter.Network?.ChainId);
 
     var wallet = await kit.AddAsync(adapter);
-    Check("facade: wallet registered", wallet.Id != null && wallet.Address == adapter.Address, wallet.Id);
+    Check("facade: wallet registered under the golden id",
+          wallet.Id == golden.String("derived", "walletId") && wallet.Address == adapter.Address, wallet.Id);
 
     var walletBalance = await wallet.BalanceAsync();
     Check("facade: balance is an exact amount",
-          walletBalance.ToRawString() == "110576459116021734", walletBalance.ToRawString());
+          walletBalance.ToRawString() == golden.String("expected", "balanceNanotons"), walletBalance.ToRawString());
 
     // The whole point of the task: a request DTO in, a response DTO out.
     var transfer = await wallet.TransferTonTransactionAsync(new TONTransferRequest(
-        transferAmount: "1000000",
+        transferAmount: golden.String("expected", "transfer", "transferAmount"),
         recipientAddress: wallet.Address,
         comment: "from the facade"));
     Check("facade: transfer is a TONTransactionRequest",
@@ -143,7 +157,8 @@ using (var kit = new TonWalletKit(new FakeHost(), configuration))
     Check("facade: transfer carries the sender", transfer.FromAddress == wallet.Address, transfer.FromAddress);
 
     var boc = await wallet.SignedSendTransactionAsync(transfer, new TONSignedSendTransactionOptions(fakeSignature: true));
-    Check("facade: sign with a fake signature", boc != null && boc.StartsWith("te6"), boc);
+    Check("facade: sign with a fake signature",
+          boc != null && boc.StartsWith(golden.String("expected", "transfer", "signedBocPrefix")), boc);
 
     var stateInit = await wallet.StateInitAsync();
     Check("facade: state init is a BOC", stateInit != null && stateInit.StartsWith("te6"), stateInit);
@@ -151,7 +166,8 @@ using (var kit = new TonWalletKit(new FakeHost(), configuration))
     // Watch-only, no wallet involved: the state DTO comes straight from walletkit.
     var state = await kit.AddressStateAsync(wallet.Address);
     Check("facade: address state -> TONAccountState",
-          state != null && state.RawBalance == "110576459116021734", state?.Status.ToString());
+          state != null && state.RawBalance == golden.String("expected", "balanceNanotons"),
+          state?.Status.ToString());
 
     // The one-step path an app actually uses on first run.
     var created = await kit.CreateWalletAsync(new TonV5R1WalletParameters(testnet));
@@ -197,6 +213,9 @@ sealed class FakeHost : IWalletKitHost, IWalletKitHttp, IWalletKitStorage
 {
     public readonly System.Collections.Generic.List<string> Requests = new();
     private readonly System.Collections.Generic.Dictionary<string, string> _store = new();
+    private readonly Golden _golden;
+
+    public FakeHost(Golden golden) => _golden = golden;
 
     public IWalletKitHttp Http => this;
     public IWalletKitSse Sse => null;          // TON Connect not exercised here
@@ -207,14 +226,13 @@ sealed class FakeHost : IWalletKitHost, IWalletKitHttp, IWalletKitStorage
                                                  CancellationToken ct)
     {
         lock (Requests) Requests.Add(url);
-        // A recorded toncenter reply, so this needs no network.
+        // The recorded toncenter reply from the golden file, so this needs no
+        // network and every binding sees the same chain state.
         return Task.FromResult(new WalletKitHttpResponse
         {
             Status = 200,
             HeadersJson = "{\"content-type\":\"application/json\"}",
-            Body = "{\"balance\":\"110576459116021734\",\"status\":\"active\","
-                 + "\"last_transaction_lt\":\"36612000000003\","
-                 + "\"last_transaction_hash\":\"YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3OA==\"}",
+            Body = _golden.String("httpFixture", "body"),
         });
     }
 
@@ -236,5 +254,52 @@ sealed class FakeHost : IWalletKitHost, IWalletKitHttp, IWalletKitStorage
     {
         lock (_store) _store.Clear();
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>The shared expectations from test/conformance/golden.json.</summary>
+sealed class Golden
+{
+    private readonly JsonDocument _document;
+
+    private Golden(JsonDocument document) => _document = document;
+
+    public static Golden Load()
+    {
+        // Walk up to the repository root: the harness runs from bin/Debug/…
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null &&
+               !File.Exists(Path.Combine(directory.FullName, "test", "conformance", "golden.json")))
+        {
+            directory = directory.Parent;
+        }
+        if (directory == null)
+        {
+            throw new FileNotFoundException("test/conformance/golden.json not found above " + AppContext.BaseDirectory);
+        }
+        return new Golden(JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(directory.FullName, "test", "conformance", "golden.json"))));
+    }
+
+    /// <summary>A string at a path, e.g. String("derived", "address").</summary>
+    public string String(params string[] path)
+    {
+        var element = _document.RootElement;
+        foreach (var step in path)
+        {
+            element = element.GetProperty(step);
+        }
+        return element.GetString();
+    }
+
+    /// <summary>A string array member.</summary>
+    public IReadOnlyList<string> Strings(string name)
+    {
+        var values = new List<string>();
+        foreach (var element in _document.RootElement.GetProperty(name).EnumerateArray())
+        {
+            values.Add(element.GetString());
+        }
+        return values;
     }
 }
