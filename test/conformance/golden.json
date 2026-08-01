@@ -2,6 +2,10 @@
   "$comment": [
     "What every binding must produce, given the same inputs.",
     "",
+    "WARNING: the mnemonic below is a published test vector. Its keys are in this",
+    "repository, so the address derived from it is owned by everyone who can read",
+    "this file. Never send funds to it, on testnet or anywhere else.",
+    "",
     "The steps are short enough to read as code in each language (see",
     "bindings/csharp/test/InteropSmoke for the reference), but the values are not",
     "a matter of taste: a binding that derives a different address from this",

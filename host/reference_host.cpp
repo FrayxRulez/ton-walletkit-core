@@ -393,6 +393,14 @@ void run_sse(twk_client* client, twk_token token, const std::string& url, const 
 // gated on ReferenceHost::httpAvailable(), so a build without libcurl skips them
 // rather than failing; a build *with* it must pass fetch_smoke and sse_smoke.
 
+// curl_easy_init initialises the library implicitly on first use, and that path
+// is explicitly not thread-safe — requests run on their own threads here, so the
+// first two could race. Done once, up front, instead.
+void ensure_curl_global() {
+    static std::once_flag once;
+    std::call_once(once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
+}
+
 size_t collect(char* data, size_t size, size_t count, void* user) {
     static_cast<std::string*>(user)->append(data, size * count);
     return size * count;
@@ -434,6 +442,7 @@ HttpOutcome do_request(const std::string& method, const std::string& url, const 
                        const std::string& body) {
     HttpOutcome outcome;
 
+    ensure_curl_global();
     CURL* handle = curl_easy_init();
     if (handle == nullptr) {
         outcome.error = "curl_easy_init failed";
@@ -480,6 +489,7 @@ HttpOutcome do_request(const std::string& method, const std::string& url, const 
 
 void run_sse(twk_client* client, twk_token token, const std::string& url, const std::string& headers_json,
              const std::shared_ptr<SseStream>& stream) {
+    ensure_curl_global();
     CURL* handle = curl_easy_init();
     if (handle == nullptr) {
         twk_sse_closed(client, token, "curl_easy_init failed");

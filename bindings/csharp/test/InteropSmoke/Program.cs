@@ -124,7 +124,8 @@ using (var kit = new TonWalletKit(new FakeHost(golden), configuration))
     Check("facade: initialize", kit.IsInitialized);
 
     var generated = await kit.GenerateMnemonicAsync();
-    Check("facade: mnemonic -> 24 words", generated.Value.Count == 24, generated.ToString());
+    // The count, not the words: a generated mnemonic is a live key even in a test.
+    Check("facade: mnemonic -> 24 words", generated.Value.Count == 24, $"{generated.Value.Count} words");
 
     // The golden mnemonic, so the address below is a fixed value every binding
     // must agree on rather than whatever this run happened to generate.
