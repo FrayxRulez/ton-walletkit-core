@@ -42,6 +42,44 @@ The native build embeds `js/dist/bundle.h`, so step 1 must run first (CI wiring
 comes in M8). On Windows, `scripts\win-build.bat amd64 test` does the CMake +
 Ninja build and runs the tests under the MSVC toolchain.
 
+## Platform support
+
+The core is plain C++17 with no third-party runtime dependency. What differs per
+platform is small and isolated:
+
+| | crypto (SHA-2 / HMAC / PBKDF2) | entropy | test host (HTTP/SSE) |
+|---|---|---|---|
+| Windows | BCrypt, in-box | `BCryptGenRandom` | WinHTTP |
+| macOS / iOS | CommonCrypto, in libSystem¹ | `getentropy` | — |
+| Linux desktop | OpenSSL when CMake finds it¹ | `getrandom(2)` | — |
+| Android | portable² | `getrandom(2)` | — |
+| anything else | portable² | `/dev/urandom` | — |
+
+¹ written but not yet compiled here — `twk_crypto_kat` is the acceptance gate.
+² `src/util/crypto_portable.cpp`: a self-contained FIPS 180-4 implementation.
+
+Pick one explicitly with `-DTWK_CRYPTO_BACKEND=bcrypt|commoncrypto|openssl|portable`.
+**`twk_crypto_kat` must pass whichever is selected** — it checks the output against
+the published RFC vectors plus the TON derivation the mnemonic loop uses, because
+a backend that is fast and wrong silently produces wrong keys.
+
+The portable backend exists so no platform is stuck with the pure-JS fallback,
+which costs ~49 ms per HMAC in the interpreter (16.7 s to create one mnemonic).
+It is not a match for a system implementation, and is not meant to be:
+
+| | portable | BCrypt |
+|---|---|---|
+| `sha256` | 0.033 ms | 0.033 ms |
+| `hmac_sha512` | 0.100 ms | 0.067 ms |
+| `pbkdf2` (390 iterations) | 3.87 ms | 0.63 ms |
+
+Entropy is never `std::random_device`, which the standard permits to be a
+deterministic PRNG — and on some toolchains really is.
+
+The reference host is Windows-only for now (WinHTTP); on other platforms its HTTP
+and SSE entry points return failure, so the two tests that need real requests
+cannot run there yet. libcurl is the obvious backend when that matters.
+
 ## Tracking upstream
 
 This library mirrors three upstream repos, and drifts from them silently if nobody

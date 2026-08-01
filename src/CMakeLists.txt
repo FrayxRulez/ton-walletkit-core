@@ -27,11 +27,61 @@ else()
     add_custom_target(twk_bundle_bytecode DEPENDS ${TWK_BC_HEADER})
 endif()
 
+# --- platform crypto backend ---
+# The system implementation wherever there is one worth having, measured rather
+# than assumed: BCrypt beats the portable code ~6x at PBKDF2 (0.63 vs 3.87 ms per
+# 390-iteration derivation), which is the primitive the mnemonic loop leans on.
+#
+#   bcrypt        Windows, in-box
+#   commoncrypto  macOS / iOS, in libSystem
+#   openssl       when CMake finds it (Linux desktop, Telegram Desktop)
+#   portable      everywhere else — notably Android, whose NDK exposes no stable
+#                 crypto C API, and any platform where OpenSSL is not a given
+#
+# Force one with -DTWK_CRYPTO_BACKEND=<name>; twk_crypto_kat must pass whichever
+# is selected, because a backend that is fast and wrong produces wrong keys.
+set(TWK_CRYPTO_BACKEND "auto" CACHE STRING "Crypto backend: auto | bcrypt | commoncrypto | openssl | portable")
+set_property(CACHE TWK_CRYPTO_BACKEND PROPERTY STRINGS auto bcrypt commoncrypto openssl portable)
+
+if(TWK_CRYPTO_BACKEND STREQUAL "auto")
+    if(WIN32)
+        set(TWK_CRYPTO_BACKEND_RESOLVED bcrypt)
+    elseif(APPLE)
+        set(TWK_CRYPTO_BACKEND_RESOLVED commoncrypto)
+    elseif(ANDROID)
+        # The NDK ships no public crypto headers; linking the system BoringSSL is
+        # unsupported and breaks between OS versions.
+        set(TWK_CRYPTO_BACKEND_RESOLVED portable)
+    else()
+        find_package(OpenSSL QUIET COMPONENTS Crypto)
+        if(OPENSSL_FOUND)
+            set(TWK_CRYPTO_BACKEND_RESOLVED openssl)
+        else()
+            set(TWK_CRYPTO_BACKEND_RESOLVED portable)
+        endif()
+    endif()
+else()
+    set(TWK_CRYPTO_BACKEND_RESOLVED ${TWK_CRYPTO_BACKEND})
+endif()
+
+if(TWK_CRYPTO_BACKEND_RESOLVED STREQUAL "bcrypt" AND NOT WIN32)
+    message(FATAL_ERROR "twk: the bcrypt crypto backend needs Windows")
+endif()
+if(TWK_CRYPTO_BACKEND_RESOLVED STREQUAL "commoncrypto" AND NOT APPLE)
+    message(FATAL_ERROR "twk: the commoncrypto backend needs macOS or iOS")
+endif()
+if(TWK_CRYPTO_BACKEND_RESOLVED STREQUAL "openssl")
+    find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+endif()
+message(STATUS "twk: crypto backend = ${TWK_CRYPTO_BACKEND_RESOLVED}")
+
+set(TWK_CRYPTO_SOURCES util/random.cpp util/crypto_${TWK_CRYPTO_BACKEND_RESOLVED}.cpp)
+
 set(TWK_SOURCES
     engine/js_runtime.cpp
     engine/event_loop.cpp
     util/base64.cpp
-    util/crypto.cpp
+    ${TWK_CRYPTO_SOURCES}
     shims/shims.cpp
     bridge/transport.cpp
     client.cpp
@@ -58,9 +108,13 @@ endif()
 # leak through the public ABI. Internal tests link `qjs` directly when they need it.
 target_link_libraries(twk PRIVATE qjs)
 
-# Platform crypto for the RNG / PBKDF2 shims (M2 routes these through host delegates).
+# bcrypt is needed on Windows even with the portable backend: the entropy source
+# is BCryptGenRandom either way.
 if(WIN32)
     target_link_libraries(twk PRIVATE bcrypt)
+endif()
+if(TWK_CRYPTO_BACKEND_RESOLVED STREQUAL "openssl")
+    target_link_libraries(twk PRIVATE OpenSSL::Crypto)
 endif()
 
 # ---- shared library (twk.dll) ----------------------------------------------
@@ -86,6 +140,9 @@ endif()
 
 if(WIN32)
     target_link_libraries(twk_shared PRIVATE bcrypt)
+endif()
+if(TWK_CRYPTO_BACKEND_RESOLVED STREQUAL "openssl")
+    target_link_libraries(twk_shared PRIVATE OpenSSL::Crypto)
 endif()
 
 # Non-Windows: hide everything except the TWK_EXPORT-marked ABI.

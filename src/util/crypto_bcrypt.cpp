@@ -1,22 +1,20 @@
 //
-// ton-walletkit-core — platform crypto primitives (internal).
+// ton-walletkit-core — SHA-2 / HMAC / PBKDF2 via BCrypt (internal, Windows).
+//
+// Windows ships these, so we use them rather than the portable backend: they are
+// maintained by the platform and measurably faster. See util/crypto_portable.cpp
+// for everywhere else, and util/random.cpp for the entropy source both share.
 //
 #include "util/crypto.h"
 
-#if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 
 #include <bcrypt.h>
-#else
-#include <random>
-#endif
 
 namespace twk {
 namespace crypto {
-
-#if defined(_WIN32)
 
 namespace {
 
@@ -64,13 +62,6 @@ bool available() {
     return sha256_alg() != nullptr && sha512_alg() != nullptr && hmac_sha512_alg() != nullptr;
 }
 
-bool random_bytes(uint8_t* out, size_t len) {
-    if (len == 0) {
-        return true;
-    }
-    return BCryptGenRandom(nullptr, out, static_cast<ULONG>(len), BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0;
-}
-
 bool sha256(const uint8_t* data, size_t len, uint8_t* out) {
     return bcrypt_hash(sha256_alg(), nullptr, 0, data, len, out, 32);
 }
@@ -93,37 +84,6 @@ bool pbkdf2_sha512(const uint8_t* password, size_t password_len, const uint8_t* 
                                  const_cast<PUCHAR>(salt), static_cast<ULONG>(salt_len), iterations, out,
                                  static_cast<ULONG>(out_len), 0) == 0;
 }
-
-#else
-
-// Hashing is not yet implemented off Windows: the JS side falls back to its
-// pure-JS implementations. The desktop reference host (M2) wires OpenSSL here.
-// Randomness is available everywhere (std::random_device is backed by the OS
-// entropy source on the platforms we target).
-bool available() {
-    return false;
-}
-bool random_bytes(uint8_t* out, size_t len) {
-    static std::random_device rd;
-    for (size_t i = 0; i < len; ++i) {
-        out[i] = static_cast<uint8_t>(rd() & 0xff);
-    }
-    return true;
-}
-bool sha256(const uint8_t*, size_t, uint8_t*) {
-    return false;
-}
-bool sha512(const uint8_t*, size_t, uint8_t*) {
-    return false;
-}
-bool hmac_sha512(const uint8_t*, size_t, const uint8_t*, size_t, uint8_t*) {
-    return false;
-}
-bool pbkdf2_sha512(const uint8_t*, size_t, const uint8_t*, size_t, uint32_t, uint8_t*, size_t) {
-    return false;
-}
-
-#endif
 
 } // namespace crypto
 } // namespace twk
