@@ -10,10 +10,10 @@ package org.ton.walletkit.core;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-import org.ton.walletkit.api.TONNetwork;
+import org.ton.walletkit.api.TonApiJson;
 
 /**
  * How the kit is built (kit-ios TONWalletKitConfiguration).
@@ -74,37 +74,47 @@ public final class TonWalletKitConfiguration {
 
     /** The config object initWalletKit takes. */
     String toJson() {
-        JsonObject config = new JsonObject();
+        JSONObject config = new JSONObject();
 
-        JsonArray networks = new JsonArray();
+        JSONArray networks = new JSONArray();
         if (networkConfigurations != null) {
             for (TonNetworkConfiguration network : networkConfigurations) {
-                networks.add(network.toJson());
+                networks.put(network.toJson());
             }
         }
-        config.add("networks", networks);
+        TonApiJson.put(config, "networks", networks);
 
         if (walletManifest != null) {
-            config.add("walletManifest", walletManifest.toJson(platform, features));
+            TonApiJson.put(config, "walletManifest", walletManifest.toJson(platform, features));
             // walletkit reports the wallet to dapps through deviceInfo; kit-ios
             // derives it from the manifest rather than asking for it twice.
-            JsonObject device = new JsonObject();
-            device.addProperty("platform", platform);
-            device.addProperty("appName", walletManifest.getAppName());
-            device.addProperty("appVersion", appVersion);
-            device.addProperty("maxProtocolVersion", 2);
-            device.add("features", TonJson.GSON.toJsonTree(features));
-            config.add("deviceInfo", device);
+            JSONObject device = new JSONObject();
+            TonApiJson.put(device, "platform", platform);
+            TonApiJson.put(device, "appName", walletManifest.getAppName());
+            TonApiJson.put(device, "appVersion", appVersion);
+            TonApiJson.put(device, "maxProtocolVersion", Integer.valueOf(2));
+            TonApiJson.put(device, "features", featuresJson());
+            TonApiJson.put(config, "deviceInfo", device);
         }
 
         if (bridge != null) {
-            config.add("bridge", bridge.toJson());
+            TonApiJson.put(config, "bridge", bridge.toJson());
         }
-        if (storagePrefix != null) {
-            config.addProperty("storagePrefix", storagePrefix);
-        }
+        TonApiJson.put(config, "storagePrefix", storagePrefix);
 
         return config.toString();
+    }
+
+    private JSONArray featuresJson() {
+        JSONArray supported = new JSONArray();
+        if (features != null) {
+            for (TonFeature feature : features) {
+                if (feature != null) {
+                    supported.put(feature.toJson());
+                }
+            }
+        }
+        return supported;
     }
 
 

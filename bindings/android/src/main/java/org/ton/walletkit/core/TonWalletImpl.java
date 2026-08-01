@@ -39,42 +39,42 @@ class TonWalletImpl extends TonWalletAdapterImpl implements TonWallet {
 
     @Override
     public void transferTonTransaction(TONTransferRequest request, Callback<TONTransactionRequest> callback) {
-        kit.invoke("createTransferTonTransaction", TonJson.args(handle, request), TONTransactionRequest.class, callback);
+        kit.invoke("createTransferTonTransaction", TonJson.args(handle, request), TONTransactionRequest.PARSER, callback);
     }
 
     @Override
     public void transferTonTransaction(List<TONTransferRequest> requests, Callback<TONTransactionRequest> callback) {
-        kit.invoke("createTransferMultiTonTransaction", TonJson.args(handle, requests), TONTransactionRequest.class, callback);
+        kit.invoke("createTransferMultiTonTransaction", TonJson.args(handle, requests), TONTransactionRequest.PARSER, callback);
     }
 
     @Override
     public void send(TONTransactionRequest transactionRequest, Callback<TONSendTransactionResponse> callback) {
-        kit.invoke("sendTransaction", TonJson.args(handle, transactionRequest), TONSendTransactionResponse.class, callback);
+        kit.invoke("sendTransaction", TonJson.args(handle, transactionRequest), TONSendTransactionResponse.PARSER, callback);
     }
 
     @Override
     public void preview(TONTransactionRequest transactionRequest, TONTransactionPreviewOptions options, Callback<TONTransactionEmulatedPreview> callback) {
-        kit.invoke("getTransactionPreview", TonJson.args(handle, transactionRequest, options), TONTransactionEmulatedPreview.class, callback);
+        kit.invoke("getTransactionPreview", TonJson.args(handle, transactionRequest, options), TONTransactionEmulatedPreview.PARSER, callback);
     }
 
     @Override
     public void transferNftTransaction(TONNFTTransferRequest request, Callback<TONTransactionRequest> callback) {
-        kit.invoke("createTransferNftTransaction", TonJson.args(handle, request), TONTransactionRequest.class, callback);
+        kit.invoke("createTransferNftTransaction", TonJson.args(handle, request), TONTransactionRequest.PARSER, callback);
     }
 
     @Override
     public void transferNftTransaction(TONNFTRawTransferRequest request, Callback<TONTransactionRequest> callback) {
-        kit.invoke("createTransferNftRawTransaction", TonJson.args(handle, request), TONTransactionRequest.class, callback);
+        kit.invoke("createTransferNftRawTransaction", TonJson.args(handle, request), TONTransactionRequest.PARSER, callback);
     }
 
     @Override
     public void nfts(TONNFTsRequest request, Callback<TONNFTsResponse> callback) {
-        kit.invoke("getNfts", TonJson.args(handle, request), TONNFTsResponse.class, callback);
+        kit.invoke("getNfts", TonJson.args(handle, request), TONNFTsResponse.PARSER, callback);
     }
 
     @Override
     public void nft(String address, Callback<TONNFT> callback) {
-        kit.invoke("getNft", TonJson.args(handle, address), TONNFT.class, callback);
+        kit.invoke("getNft", TonJson.args(handle, address), TONNFT.PARSER, callback);
     }
 
     @Override
@@ -84,17 +84,17 @@ class TonWalletImpl extends TonWalletAdapterImpl implements TonWallet {
 
     @Override
     public void jettonWalletAddress(String jettonAddress, Callback<String> callback) {
-        kit.invoke("getJettonWalletAddress", TonJson.args(handle, jettonAddress), String.class, callback);
+        kit.invokeString("getJettonWalletAddress", TonJson.args(handle, jettonAddress), callback);
     }
 
     @Override
     public void transferJettonTransaction(TONJettonsTransferRequest request, Callback<TONTransactionRequest> callback) {
-        kit.invoke("createTransferJettonTransaction", TonJson.args(handle, request), TONTransactionRequest.class, callback);
+        kit.invoke("createTransferJettonTransaction", TonJson.args(handle, request), TONTransactionRequest.PARSER, callback);
     }
 
     @Override
     public void jettons(TONJettonsRequest request, Callback<TONJettonsResponse> callback) {
-        kit.invoke("getJettons", TonJson.args(handle, request), TONJettonsResponse.class, callback);
+        kit.invoke("getJettons", TonJson.args(handle, request), TONJettonsResponse.PARSER, callback);
     }
 
 }

@@ -12,7 +12,7 @@ import org.ton.walletkit.api.*;
 
 abstract class TonWalletKitGenerated {
 
-    abstract void invoke(String method, String args, Class<?> type, Callback<?> callback);
+    abstract <T> void invoke(String method, String args, Parser<T> parser, Callback<?> callback);
 
     abstract void invokeVoid(String method, String args, Callback<Void> callback);
 
@@ -20,12 +20,14 @@ abstract class TonWalletKitGenerated {
 
     abstract void invokeMnemonic(String method, String args, Callback<TonMnemonic> callback);
 
-    abstract void invokeList(String method, String args, Class<?> arrayType, Callback<?> callback);
+    abstract void invokeString(String method, String args, Callback<String> callback);
 
-    abstract <D, T> void invokeObject(String method, String args, Class<D> descriptor,
+    abstract <T> void invokeList(String method, String args, Parser<T> parser, Callback<?> callback);
+
+    abstract <D, T> void invokeObject(String method, String args, Parser<D> descriptor,
                                       TonWalletKit.Factory<D, T> factory, Callback<T> callback);
 
-    abstract <D, T> void invokeObjectList(String method, String args, Class<D[]> descriptors,
+    abstract <D, T> void invokeObjectList(String method, String args, Parser<D> descriptor,
                                           TonWalletKit.Factory<D, T> factory,
                                           Callback<List<T>> callback);
 
@@ -43,43 +45,43 @@ abstract class TonWalletKitGenerated {
      * securely: walletkit persists neither signers nor wallets.
      */
     public void signer(TonMnemonic mnemonic, Callback<TonSigner> callback) {
-        invokeObject("createSignerFromMnemonic", TonJson.args(mnemonic.getValue(), "ton"), TonSignerDescriptor.class,
+        invokeObject("createSignerFromMnemonic", TonJson.args(mnemonic.getValue(), "ton"), TonSignerDescriptor.PARSER,
                 TonSignerImpl.FACTORY, callback);
     }
 
     /** Creates a signer from a raw private key. */
     public void signer(byte[] privateKey, Callback<TonSigner> callback) {
-        invokeObject("createSignerFromPrivateKey", TonJson.args(privateKey), TonSignerDescriptor.class,
+        invokeObject("createSignerFromPrivateKey", TonJson.args(privateKey), TonSignerDescriptor.PARSER,
                 TonSignerImpl.FACTORY, callback);
     }
 
     /** Derives a V5R1 wallet (the current default contract). */
     public void walletV5R1Adapter(TonSigner signer, TonV5R1WalletParameters parameters, Callback<TonWalletAdapter> callback) {
-        invokeObject("createV5R1WalletAdapter", TonJson.argsRaw(handleOf(signer), parameters == null ? null : parameters.toJson()), TonAdapterDescriptor.class,
+        invokeObject("createV5R1WalletAdapter", TonJson.argsRaw(handleOf(signer), parameters == null ? null : parameters.toJson()), TonAdapterDescriptor.PARSER,
                 TonWalletAdapterImpl.FACTORY, callback);
     }
 
     /** Derives a V4R2 wallet. */
     public void walletV4R2Adapter(TonSigner signer, TonV4R2WalletParameters parameters, Callback<TonWalletAdapter> callback) {
-        invokeObject("createV4R2WalletAdapter", TonJson.argsRaw(handleOf(signer), parameters == null ? null : parameters.toJson()), TonAdapterDescriptor.class,
+        invokeObject("createV4R2WalletAdapter", TonJson.argsRaw(handleOf(signer), parameters == null ? null : parameters.toJson()), TonAdapterDescriptor.PARSER,
                 TonWalletAdapterImpl.FACTORY, callback);
     }
 
     /** Registers an adapter, yielding a usable wallet. */
     public void add(TonWalletAdapter walletAdapter, Callback<TonWallet> callback) {
-        invokeObject("addWallet", TonJson.args(handleOf(walletAdapter)), TonWalletDescriptor.class,
+        invokeObject("addWallet", TonJson.args(handleOf(walletAdapter)), TonWalletDescriptor.PARSER,
                 TonWalletImpl.FACTORY, callback);
     }
 
     /** One registered wallet by id, or null. */
     public void wallet(String walletId, Callback<TonWallet> callback) {
-        invokeObject("getWallet", TonJson.args(walletId), TonWalletDescriptor.class,
+        invokeObject("getWallet", TonJson.args(walletId), TonWalletDescriptor.PARSER,
                 TonWalletImpl.FACTORY, callback);
     }
 
     /** Every registered wallet. */
     public void wallets(Callback<List<TonWallet>> callback) {
-        invokeObjectList("getWallets", TonJson.args(), TonWalletDescriptor[].class,
+        invokeObjectList("getWallets", TonJson.args(), TonWalletDescriptor.PARSER,
                 TonWalletImpl.FACTORY, callback);
     }
 
@@ -95,7 +97,7 @@ abstract class TonWalletKitGenerated {
 
     /** Account state for any address: balance, status, last transaction. Needs no wallet. */
     public void addressState(String address, String chainId, Callback<TONAccountState> callback) {
-        invoke("getAddressState", TonJson.args(address, chainId(chainId)), TONAccountState.class, callback);
+        invoke("getAddressState", TonJson.args(address, chainId(chainId)), TONAccountState.PARSER, callback);
     }
 
     /**
@@ -107,12 +109,12 @@ abstract class TonWalletKitGenerated {
      * problem.
      */
     public void addressTransactions(String address, String chainId, Integer limit, Integer offset, Callback<TONTransactionsResponse> callback) {
-        invoke("getAddressTransactions", TonJson.args(address, chainId(chainId), limit, offset), TONTransactionsResponse.class, callback);
+        invoke("getAddressTransactions", TonJson.args(address, chainId(chainId), limit, offset), TONTransactionsResponse.PARSER, callback);
     }
 
     /** Every live TON Connect session. */
     public void sessions(Callback<List<TONConnectSession>> callback) {
-        invokeList("getSessions", TonJson.args(), TONConnectSession[].class, callback);
+        invokeList("getSessions", TonJson.args(), TONConnectSession.PARSER, callback);
     }
 
     /** Ends a session. */

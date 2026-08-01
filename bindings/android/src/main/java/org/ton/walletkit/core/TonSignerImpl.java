@@ -39,7 +39,7 @@ class TonSignerImpl implements TonSigner {
 
     @Override
     public void sign(byte[] data, Callback<String> callback) {
-        kit.invoke("sign", TonJson.args(handle, data), String.class, callback);
+        kit.invokeString("sign", TonJson.args(handle, data), callback);
     }
 
 }

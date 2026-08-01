@@ -7,10 +7,30 @@
 
 package org.ton.walletkit.core;
 
-import org.ton.walletkit.api.TONNetwork;
+import org.json.JSONObject;
 
-/** A reply from the core; Gson fills these by field name. */
+import org.ton.walletkit.api.Parser;
+import org.ton.walletkit.api.TONNetwork;
+import org.ton.walletkit.api.TonApiJson;
+
+/** A reply from the core, read field by field like the generated models. */
 final class TonAdapterDescriptor {
+
+    static final Parser<TonAdapterDescriptor> PARSER = new Parser<TonAdapterDescriptor>() {
+        @Override
+        public TonAdapterDescriptor parse(JSONObject json) {
+            if (json == null) {
+                return null;
+            }
+            TonAdapterDescriptor out = new TonAdapterDescriptor();
+            out.adapterId = TonApiJson.optString(json, "adapterId");
+            out.address = TonApiJson.optString(json, "address");
+            out.publicKey = TonApiJson.optString(json, "publicKey");
+            out.walletId = TonApiJson.optString(json, "walletId");
+            out.network = TONNetwork.fromJson(TonApiJson.optObject(json, "network"));
+            return out;
+        }
+    };
 
     String adapterId;
     String address;

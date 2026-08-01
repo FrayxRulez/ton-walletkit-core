@@ -9,8 +9,10 @@ package org.ton.walletkit.core;
 
 import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import org.ton.walletkit.api.TonApiJson;
 
 import org.ton.walletkit.api.TONNetwork;
 import org.ton.walletkit.api.TONSignatureDomain;
@@ -36,16 +38,16 @@ public class TonV4R2WalletParameters {
         return this;
     }
 
-    JsonObject json() {
-        JsonObject params = new JsonObject();
+    JSONObject json() {
+        JSONObject params = new JSONObject();
         if (network != null) {
-            params.add("network", TonJson.GSON.toJsonTree(network));
+            TonApiJson.put(params, "network", network.toJson());
         }
         if (walletId != null) {
-            params.addProperty("walletId", walletId);
+            TonApiJson.put(params, "walletId", walletId);
         }
         if (workchain != null) {
-            params.addProperty("workchain", workchain);
+            TonApiJson.put(params, "workchain", workchain);
         }
         return params;
     }

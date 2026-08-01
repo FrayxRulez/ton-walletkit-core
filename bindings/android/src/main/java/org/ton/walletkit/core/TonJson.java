@@ -7,50 +7,47 @@
 
 package org.ton.walletkit.core;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 /**
  * JSON for the ABI: builds the positional argument arrays twk_send takes, and
- * reads result envelopes into the generated DTOs.
+ * opens the envelopes that come back.
  *
- * <p>Gson because Android has no reflection-free requirement (unlike .NET
- * Native, where the C# binding needs hand-written converters) and because it is
- * the smallest mainstream option openapi-generator emits for. It is a dependency
- * the consuming app gains — see docs/BINDINGS.md.
+ * <p>{@code org.json} because it is part of Android, so the binding adds nothing
+ * to the app that uses it — Telegram Android, which this exists for, takes no new
+ * dependencies. The models read and write themselves (see
+ * {@code org.ton.walletkit.api.TonApiJson}), so nothing here reflects.
  */
 final class TonJson {
-
-    /** Nulls are dropped rather than sent: walletkit treats absent and null differently. */
-    static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
     private TonJson() {
     }
 
-    /** A positional argument array. Values are serialized by their runtime type. */
+    /** A positional argument array. Nulls become JSON null, which is a position. */
     static String args(Object... values) {
-        JsonArray array = new JsonArray();
+        JSONArray array = new JSONArray();
         for (Object value : values) {
-            array.add(GSON.toJsonTree(value));
+            array.put(encode(value));
         }
         return array.toString();
     }
 
     /**
      * The same, for arguments that are already JSON — wallet parameters, which
-     * serialize themselves. A null element becomes JSON null.
+     * serialize themselves.
      */
     static String argsRaw(Object... values) {
-        JsonArray array = new JsonArray();
+        JSONArray array = new JSONArray();
         for (Object value : values) {
             if (value instanceof String && isJson((String) value)) {
-                array.add(JsonParser.parseString((String) value));
+                array.put(parse((String) value));
             } else {
-                array.add(GSON.toJsonTree(value));
+                array.put(encode(value));
             }
         }
         return array.toString();
@@ -61,37 +58,87 @@ final class TonJson {
         if (fakeSignature == null) {
             return null;
         }
-        JsonObject options = new JsonObject();
-        options.addProperty("fakeSignature", fakeSignature);
+        JSONObject options = new JSONObject();
+        try {
+            options.put("fakeSignature", fakeSignature.booleanValue());
+        } catch (JSONException impossible) {
+            return null;
+        }
         return options.toString();
     }
 
-    /** The value of the envelope's result member, or null when there is none. */
-    static JsonElement result(String envelope) {
+    /** The envelope's result member, or null when there is none. */
+    static Object result(String envelope) {
         if (envelope == null) {
             return null;
         }
-        JsonElement root = JsonParser.parseString(envelope);
-        if (!root.isJsonObject()) {
+        Object root = parse(envelope);
+        if (!(root instanceof JSONObject)) {
             return null;
         }
-        JsonElement result = root.getAsJsonObject().get("result");
-        return result == null || result.isJsonNull() ? null : result;
+        Object result = ((JSONObject) root).opt("result");
+        return result == JSONObject.NULL ? null : result;
     }
 
-    static <T> T result(String envelope, Class<T> type) {
-        JsonElement value = result(envelope);
-        return value == null ? null : GSON.fromJson(value, type);
+    static JSONObject resultObject(String envelope) {
+        Object value = result(envelope);
+        return value instanceof JSONObject ? (JSONObject) value : null;
+    }
+
+    static JSONArray resultArray(String envelope) {
+        Object value = result(envelope);
+        return value instanceof JSONArray ? (JSONArray) value : null;
+    }
+
+    static String resultString(String envelope) {
+        Object value = result(envelope);
+        return value == null ? null : value.toString();
     }
 
     /** Splits an {@code {"event":{"type":…,"payload":…}}} envelope. */
-    static JsonObject event(String envelope) {
-        JsonElement root = JsonParser.parseString(envelope);
-        if (!root.isJsonObject()) {
+    static JSONObject event(String envelope) {
+        if (envelope == null) {
             return null;
         }
-        JsonElement update = root.getAsJsonObject().get("event");
-        return update != null && update.isJsonObject() ? update.getAsJsonObject() : null;
+        Object root = parse(envelope);
+        if (!(root instanceof JSONObject)) {
+            return null;
+        }
+        Object update = ((JSONObject) root).opt("event");
+        return update instanceof JSONObject ? (JSONObject) update : null;
+    }
+
+    /** Values that reach the ABI: primitives, string lists, and models. */
+    private static Object encode(Object value) {
+        if (value == null) {
+            return JSONObject.NULL;
+        }
+        if (value instanceof List) {
+            JSONArray array = new JSONArray();
+            for (Object item : (List<?>) value) {
+                array.put(encode(item));
+            }
+            return array;
+        }
+        if (value instanceof byte[]) {
+            // walletkit's JS reads keys as arrays of numbers; base64 would be
+            // silently accepted and produce the wrong key.
+            byte[] bytes = (byte[]) value;
+            JSONArray array = new JSONArray();
+            for (byte b : bytes) {
+                array.put(b & 0xff);
+            }
+            return array;
+        }
+        return value;
+    }
+
+    private static Object parse(String text) {
+        try {
+            return new JSONTokener(text).nextValue();
+        } catch (JSONException malformed) {
+            return null;
+        }
     }
 
     private static boolean isJson(String value) {

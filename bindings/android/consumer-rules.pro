@@ -4,8 +4,13 @@
 # Distributed under the MIT License. (See accompanying file LICENSE or copy at
 # https://opensource.org/licenses/MIT)
 #
-# Applied to the consuming app's R8 run. Everything here is reached by NAME at
-# runtime, so renaming it breaks the binding on device while compiling perfectly.
+# Applied to the consuming app's R8 run. Only what is reached by NAME at runtime
+# is kept: renaming any of it breaks the binding on device while compiling
+# perfectly.
+#
+# Nothing about the models is listed here. They are generated to read and write
+# themselves field by field, with no reflection anywhere, so R8 is free to
+# rename and shrink the whole org.ton.walletkit.api package.
 
 # The native methods are bound by symbol name (Java_org_ton_walletkit_core_Native_*),
 # so both the class and its methods must keep the names the .so was built against.
@@ -19,15 +24,3 @@
 -keep class org.ton.walletkit.core.HostBridge {
     <methods>;
 }
-
-# The generated DTOs are deserialized by Gson, which maps JSON keys onto field
-# names by reflection. Renaming a field silently turns it into null rather than
-# failing, which is the worst kind of bug to chase.
--keep class org.ton.walletkit.api.** { *; }
--keepclassmembers class org.ton.walletkit.core.Ton*Descriptor { *; }
-
-# Gson's own requirements, in case the app has no rules for it.
--keepattributes Signature, InnerClasses, EnclosingMethod
--keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
--keep class com.google.gson.reflect.TypeToken { *; }
--keep class * extends com.google.gson.reflect.TypeToken

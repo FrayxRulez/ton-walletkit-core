@@ -10,9 +10,8 @@ package org.ton.walletkit.core;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -117,29 +116,35 @@ public class AndroidWalletKitHost implements WalletKitHost {
         if (headersJson == null || headersJson.isEmpty()) {
             return;
         }
-        JsonElement parsed;
+        Object parsed;
         try {
-            parsed = JsonParser.parseString(headersJson);
-        } catch (RuntimeException malformed) {
+            parsed = new JSONTokener(headersJson).nextValue();
+        } catch (org.json.JSONException malformed) {
             return;
         }
-        if (!parsed.isJsonObject()) {
+        if (!(parsed instanceof JSONObject)) {
             return;
         }
-        for (Map.Entry<String, JsonElement> entry : parsed.getAsJsonObject().entrySet()) {
-            JsonElement value = entry.getValue();
-            if (value != null && value.isJsonPrimitive()) {
-                connection.setRequestProperty(entry.getKey(), value.getAsString());
+        JSONObject headers = (JSONObject) parsed;
+        for (java.util.Iterator<String> keys = headers.keys(); keys.hasNext();) {
+            String key = keys.next();
+            Object value = headers.opt(key);
+            if (value != null && value != JSONObject.NULL && !(value instanceof JSONObject)) {
+                connection.setRequestProperty(key, value.toString());
             }
         }
     }
 
     private static String headersToJson(HttpURLConnection connection) {
-        JsonObject headers = new JsonObject();
+        JSONObject headers = new JSONObject();
         for (Map.Entry<String, java.util.List<String>> entry : connection.getHeaderFields().entrySet()) {
             // The status line comes back under a null key.
             if (entry.getKey() != null && entry.getValue() != null && !entry.getValue().isEmpty()) {
-                headers.addProperty(entry.getKey().toLowerCase(java.util.Locale.US), entry.getValue().get(0));
+                try {
+                    headers.put(entry.getKey().toLowerCase(java.util.Locale.US), entry.getValue().get(0));
+                } catch (org.json.JSONException impossible) {
+                    // Only for a null key, which the guard above rules out.
+                }
             }
         }
         return headers.toString();
@@ -338,13 +343,17 @@ public class AndroidWalletKitHost implements WalletKitHost {
 
                     if (line.isEmpty()) {
                         if (data.length() > 0 || event != null) {
-                            JsonObject payload = new JsonObject();
-                            payload.addProperty("data", data.toString());
-                            if (event != null) {
-                                payload.addProperty("event", event);
-                            }
-                            if (id != null) {
-                                payload.addProperty("id", id);
+                            JSONObject payload = new JSONObject();
+                            try {
+                                payload.put("data", data.toString());
+                                if (event != null) {
+                                    payload.put("event", event);
+                                }
+                                if (id != null) {
+                                    payload.put("id", id);
+                                }
+                            } catch (org.json.JSONException impossible) {
+                                // Only thrown for a null key; these are literals.
                             }
                             sink.event(payload.toString());
                         }

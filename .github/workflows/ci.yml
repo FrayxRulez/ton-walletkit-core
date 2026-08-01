@@ -168,7 +168,7 @@ jobs:
         # ships: c++_static means the STL is not shared, but keeping the compiler
         # the same removes one variable from any crash report they send back.
         run: |
-          sdkmanager --install "ndk;27.2.12479018" > /dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
 
       - name: Build a host twk-bundlec
@@ -178,19 +178,42 @@ jobs:
           cmake -B build-host -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build-host --target twk-bundlec
 
-      - name: Verify the JNI layer on a desktop JVM
-        # The binding's real test: no emulator, but it runs the actual core
-        # through the actual JNI shim and derives the golden address. Only
-        # src/main/java compiles here — src/android/java needs a Context.
+      - name: Check the generated DTOs are in sync with the walletkit types
+        # A hand-edit would be silently overwritten on the next regeneration.
+        # Only the steps the Java models need: `npm run build` would also run the
+        # C# generator, which downloads a 30 MB jar to produce output this job
+        # does not look at.
+        run: |
+          npm ci --prefix scripts/generate-api
+          npm run surface --prefix scripts/generate-api
+          npm run schema --prefix scripts/generate-api
+          npm run openapi --prefix scripts/generate-api
+          npm run java --prefix scripts/generate-api
+          git diff --exit-code bindings/android/src/main/java/org/ton/walletkit/api
+
+      - name: Verify the JNI layer and the DTOs on a desktop JVM
+        # No emulator, but this runs the actual core through the actual JNI shim
+        # and derives the golden address. Only src/main/java compiles here —
+        # src/android/java needs a Context.
+        #
+        # org.json is the one jar downloaded: it ships in android.jar on device,
+        # so it is a test-only dependency and never reaches the AAR.
         run: |
           cmake --build build-host --target twk_jni
           mkdir -p build-jni
-          curl -sSLo build-jni/gson.jar \
-            https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar
-          javac -nowarn -cp build-jni/gson.jar -d build-jni \
+          curl -sSLo build-jni/json.jar \
+            https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
+          javac -nowarn -cp build-jni/json.jar -d build-jni \
                 $(find bindings/android/src/main/java -name '*.java') \
-                bindings/android/test/JniSmoke.java
-          java -Djava.library.path=build-host/bin -cp "build-jni:build-jni/gson.jar" JniSmoke
+                bindings/android/test/JniSmoke.java bindings/android/test/DtoSmoke.java
+          java -cp "build-jni:build-jni/json.jar" DtoSmoke
+          java -Djava.library.path=build-host/bin -cp "build-jni:build-jni/json.jar" JniSmoke
+
+      - name: No dependency crept into the binding
+        # The whole point of the org.json DTOs: an app adds the .aar and nothing
+        # else. An import of a JSON library would quietly undo that.
+        run: |
+          ! grep -rn "com\.google\.gson\|com\.fasterxml" bindings/android/src bindings/android/build.gradle
 
       - name: Cross-build libtwk_jni.so
         run: |

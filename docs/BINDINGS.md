@@ -21,7 +21,7 @@ built from walletkit's own types. Adding a language is a generator flag:
 | language | target | notes |
 |---|---|---|
 | C# | `csharp --library generichost` | hand-written converters, which .NET Native needs |
-| Java | `java --library native` | or `apache-httpclient`; only the models are kept |
+| Java | **our own emitter** | `emit-java-dto.mjs` — see below |
 | Kotlin | `kotlin` | what kit-android generates |
 | Swift | `swift5` / `swift6` | `Codable` models |
 | C++/Qt | `cpp-qt-client` | `QString`/`QJsonObject` models — see §6 |
@@ -29,6 +29,17 @@ built from walletkit's own types. Adding a language is a generator flag:
 Keep only the model files and whatever tiny support they need; the rest of every
 generator's output is an HTTP client we do not use, because our transport is the
 C ABI. See `scripts/generate-api/run-openapi-generator.mjs` for how C# does it.
+
+**When the generator's output costs the app a dependency, write the emitter.**
+Java went that way: every openapi-generator Java target speaks Gson or Jackson,
+and Telegram Android — the consumer the binding exists for — takes no new
+dependencies. `emit-java-dto.mjs` reads the same OpenAPI document and emits
+models that read and write themselves through `org.json`, which ships in the
+platform. It is ~500 lines because the schema is regular: objects of
+string/number/boolean/ref/enum/array/map, plus unions that are always
+discriminated by a literal `type`. The output is a third the size of the
+generated Gson models and, like the C# converters, involves no reflection — so
+R8 may rename anything, and no keep rules are needed for the model package.
 
 ## 2. Facade
 

@@ -76,11 +76,9 @@ android {
 }
 
 dependencies {
-    // The generated DTOs are Gson models. `api`, not `implementation`: a consumer
-    // resolving this through Maven needs Gson on its own compile classpath too.
-    // A consumer that just drops the .aar into libs/ gets no transitive
-    // dependencies at all and has to add this line itself — see README.md.
-    api 'com.google.code.gson:gson:2.10.1'
+    // Deliberately none. The models read and write themselves through org.json,
+    // which is part of the platform, so an app adds this .aar and nothing else —
+    // Telegram Android, which this exists for, takes no new dependencies.
 }
 
 // Fails early and clearly rather than shipping an .aar with no native code in

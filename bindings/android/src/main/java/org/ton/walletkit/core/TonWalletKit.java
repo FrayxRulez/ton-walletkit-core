@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.google.gson.JsonElement;
+import org.json.JSONObject;
 
+import org.ton.walletkit.api.Parser;
+import org.ton.walletkit.api.TonApiJson;
 import org.ton.walletkit.api.TONSendTransactionResponse;
 import org.ton.walletkit.api.TONTransactionRequest;
 
@@ -133,10 +135,7 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                             return;
                         }
                         // {address, balance} is a shape of the core's own.
-                        JsonElement value = TonJson.result(result);
-                        String balance = value != null && value.isJsonObject()
-                                && value.getAsJsonObject().has("balance")
-                                ? value.getAsJsonObject().get("balance").getAsString() : null;
+                        String balance = TonApiJson.optString(TonJson.resultObject(result), "balance");
                         deliver(callback, TonAmount.fromNanotons(balance), null);
                     }
                 });
@@ -177,12 +176,19 @@ public final class TonWalletKit extends TonWalletKitGenerated {
 
     @Override
     @SuppressWarnings("unchecked")
-    void invoke(String method, String args, final Class<?> type, final Callback<?> callback) {
+    <T> void invoke(String method, String args, final Parser<T> parser, final Callback<?> callback) {
         final Callback<Object> typed = (Callback<Object>) callback;
         client.send(method, args, new WalletKitClient.ResultHandler() {
             @Override
             public void onResult(String result, WalletKitException error) {
-                deliver(typed, error == null ? TonJson.result(result, type) : null, error);
+                if (error != null) {
+                    deliver(typed, null, error);
+                    return;
+                }
+                // A method whose result is a bare value (a string, a number) has
+                // no object to parse; the parser only applies to models.
+                JSONObject value = TonJson.resultObject(result);
+                deliver(typed, value == null ? TonJson.result(result) : parser.parse(value), null);
             }
         });
     }
@@ -206,8 +212,7 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                     deliver(callback, null, error);
                     return;
                 }
-                JsonElement value = TonJson.result(result);
-                deliver(callback, TonAmount.fromNanotons(value == null ? null : value.getAsString()), null);
+                deliver(callback, TonAmount.fromNanotons(TonJson.resultString(result)), null);
             }
         });
     }
@@ -221,16 +226,25 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                     deliver(callback, null, error);
                     return;
                 }
-                String[] words = TonJson.result(result, String[].class);
-                deliver(callback, new TonMnemonic(words == null
-                        ? new ArrayList<String>() : Arrays.asList(words)), null);
+                List<String> words = TonApiJson.stringList(TonJson.resultArray(result));
+                deliver(callback, new TonMnemonic(words == null ? new ArrayList<String>() : words), null);
+            }
+        });
+    }
+
+    @Override
+    void invokeString(String method, String args, final Callback<String> callback) {
+        client.send(method, args, new WalletKitClient.ResultHandler() {
+            @Override
+            public void onResult(String result, WalletKitException error) {
+                deliver(callback, error == null ? TonJson.resultString(result) : null, error);
             }
         });
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    void invokeList(String method, String args, final Class<?> arrayType, final Callback<?> callback) {
+    <T> void invokeList(String method, String args, final Parser<T> parser, final Callback<?> callback) {
         final Callback<Object> typed = (Callback<Object>) callback;
         client.send(method, args, new WalletKitClient.ResultHandler() {
             @Override
@@ -239,14 +253,14 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                     deliver(typed, null, error);
                     return;
                 }
-                Object array = TonJson.result(result, arrayType);
-                deliver(typed, array == null ? new ArrayList<Object>() : Arrays.asList((Object[]) array), null);
+                List<T> items = TonApiJson.list(TonJson.resultArray(result), parser);
+                deliver(typed, items == null ? new ArrayList<T>() : items, null);
             }
         });
     }
 
     @Override
-    <D, T> void invokeObject(String method, String args, final Class<D> descriptor,
+    <D, T> void invokeObject(String method, String args, final Parser<D> descriptor,
                              final Factory<D, T> factory, final Callback<T> callback) {
         client.send(method, args, new WalletKitClient.ResultHandler() {
             @Override
@@ -255,14 +269,14 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                     deliver(callback, null, error);
                     return;
                 }
-                D value = TonJson.result(result, descriptor);
+                D value = descriptor.parse(TonJson.resultObject(result));
                 deliver(callback, value == null ? null : factory.create(TonWalletKit.this, value), null);
             }
         });
     }
 
     @Override
-    <D, T> void invokeObjectList(String method, String args, final Class<D[]> descriptors,
+    <D, T> void invokeObjectList(String method, String args, final Parser<D> descriptor,
                                  final Factory<D, T> factory, final Callback<List<T>> callback) {
         client.send(method, args, new WalletKitClient.ResultHandler() {
             @Override
@@ -271,11 +285,13 @@ public final class TonWalletKit extends TonWalletKitGenerated {
                     deliver(callback, null, error);
                     return;
                 }
-                D[] values = TonJson.result(result, descriptors);
+                List<D> values = TonApiJson.list(TonJson.resultArray(result), descriptor);
                 List<T> items = new ArrayList<T>();
                 if (values != null) {
                     for (D value : values) {
-                        items.add(factory.create(TonWalletKit.this, value));
+                        if (value != null) {
+                            items.add(factory.create(TonWalletKit.this, value));
+                        }
                     }
                 }
                 deliver(callback, items, null);

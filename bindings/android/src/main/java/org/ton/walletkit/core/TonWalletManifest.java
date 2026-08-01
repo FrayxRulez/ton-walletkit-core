@@ -9,8 +9,10 @@ package org.ton.walletkit.core;
 
 import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import org.ton.walletkit.api.TonApiJson;
 
 import org.ton.walletkit.api.TONNetwork;
 import org.ton.walletkit.api.TONSignatureDomain;
@@ -58,19 +60,28 @@ public final class TonWalletManifest {
         return this;
     }
 
-    JsonObject toJson(String platform, List<TonFeature> features) {
-        JsonObject manifest = new JsonObject();
-        manifest.addProperty("name", name);
-        manifest.addProperty("appName", appName);
-        manifest.addProperty("imageUrl", imageUrl);
-        manifest.addProperty("aboutUrl", aboutUrl);
-        manifest.addProperty("universalLink", universalLink);
-        manifest.addProperty("bridgeUrl", bridgeUrl);
+    JSONObject toJson(String platform, List<TonFeature> features) {
+        JSONObject manifest = new JSONObject();
+        TonApiJson.put(manifest, "name", name);
+        TonApiJson.put(manifest, "appName", appName);
+        TonApiJson.put(manifest, "imageUrl", imageUrl);
+        TonApiJson.put(manifest, "aboutUrl", aboutUrl);
+        TonApiJson.put(manifest, "universalLink", universalLink);
+        TonApiJson.put(manifest, "bridgeUrl", bridgeUrl);
 
-        JsonArray platforms = new JsonArray();
-        platforms.add(platform);
-        manifest.add("platforms", platforms);
-        manifest.add("features", TonJson.GSON.toJsonTree(features));
+        JSONArray platforms = new JSONArray();
+        platforms.put(platform);
+        TonApiJson.put(manifest, "platforms", platforms);
+
+        if (features != null) {
+            JSONArray supported = new JSONArray();
+            for (TonFeature feature : features) {
+                if (feature != null) {
+                    supported.put(feature.toJson());
+                }
+            }
+            TonApiJson.put(manifest, "features", supported);
+        }
         return manifest;
     }
 }

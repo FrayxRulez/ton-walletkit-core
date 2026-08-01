@@ -9,8 +9,10 @@ package org.ton.walletkit.core;
 
 import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import org.ton.walletkit.api.TonApiJson;
 
 import org.ton.walletkit.api.TONNetwork;
 import org.ton.walletkit.api.TONSignatureDomain;
@@ -35,13 +37,13 @@ public final class TonBridgeConfiguration {
         return this;
     }
 
-    JsonObject toJson() {
-        JsonObject config = new JsonObject();
+    JSONObject toJson() {
+        JSONObject config = new JSONObject();
         if (bridgeUrl != null) {
-            config.addProperty("bridgeUrl", bridgeUrl);
+            TonApiJson.put(config, "bridgeUrl", bridgeUrl);
         }
         if (jsBridgeKey != null) {
-            config.addProperty("jsBridgeKey", jsBridgeKey);
+            TonApiJson.put(config, "jsBridgeKey", jsBridgeKey);
         }
         return config;
     }

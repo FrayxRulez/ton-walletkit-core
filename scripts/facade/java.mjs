@@ -116,9 +116,17 @@ function returnKind(returns) {
     if (returns === 'void') return 'call';
     if (returns === 'amount') return 'amount';
     if (returns === 'mnemonic') return 'mnemonic';
+    if (returns === 'string' || returns === 'chainId') return 'string';
     if (/^object:/.test(returns)) return 'object';
     if (/^list<object:/.test(returns)) return 'objectList';
     if (/^list<(.+)>$/.test(returns)) return 'list';
+    // Everything else is read by the model's own PARSER, so it has to BE a
+    // model. A scalar reaching here would emit String.PARSER and fail to
+    // compile; failing at generation time says why.
+    const type = typeName(returns);
+    if (['Boolean', 'Integer', 'Double', 'byte[]', 'String'].indexOf(type) >= 0) {
+        throw new Error(`no invoke path for scalar return \`${returns}\` (${type}) — add one`);
+    }
     return 'invoke';
 }
 
@@ -135,22 +143,27 @@ function body(method, { invoke, handle, indent }) {
             return `${pad}${target}invokeAmount("${method.abi}", ${args}, callback);\n`;
         case 'mnemonic':
             return `${pad}${target}invokeMnemonic("${method.abi}", ${args}, callback);\n`;
+        case 'string':
+            return `${pad}${target}invokeString("${method.abi}", ${args}, callback);\n`;
+        // Models are read by their own PARSER rather than by handing a Class to
+        // a reflective mapper: no reflection means no R8 keep rules, and no way
+        // for a shrunk build to deserialize a renamed field into null.
         case 'object': {
             const name = /^object:(.+)$/.exec(method.returns)[1];
-            return `${pad}${target}invokeObject("${method.abi}", ${args}, ${descriptorOf(name)}.class,\n` +
+            return `${pad}${target}invokeObject("${method.abi}", ${args}, ${descriptorOf(name)}.PARSER,\n` +
                    `${pad}        ${objectType(name)}.FACTORY, callback);\n`;
         }
         case 'objectList': {
             const name = /^list<object:(.+)>$/.exec(method.returns)[1];
-            return `${pad}${target}invokeObjectList("${method.abi}", ${args}, ${descriptorOf(name)}[].class,\n` +
+            return `${pad}${target}invokeObjectList("${method.abi}", ${args}, ${descriptorOf(name)}.PARSER,\n` +
                    `${pad}        ${objectType(name)}.FACTORY, callback);\n`;
         }
         case 'list': {
             const inner = typeName(/^list<(.+)>$/.exec(method.returns)[1]);
-            return `${pad}${target}invokeList("${method.abi}", ${args}, ${inner}[].class, callback);\n`;
+            return `${pad}${target}invokeList("${method.abi}", ${args}, ${inner}.PARSER, callback);\n`;
         }
         default:
-            return `${pad}${target}invoke("${method.abi}", ${args}, ${typeName(method.returns)}.class, callback);\n`;
+            return `${pad}${target}invoke("${method.abi}", ${args}, ${typeName(method.returns)}.PARSER, callback);\n`;
     }
 }
 
@@ -247,14 +260,15 @@ function kit(schema) {
     out += `abstract class TonWalletKitGenerated {\n\n`;
 
     // The invoker methods the generated bodies call, implemented by TonWalletKit.
-    out += `    abstract void invoke(String method, String args, Class<?> type, Callback<?> callback);\n\n`;
+    out += `    abstract <T> void invoke(String method, String args, Parser<T> parser, Callback<?> callback);\n\n`;
     out += `    abstract void invokeVoid(String method, String args, Callback<Void> callback);\n\n`;
     out += `    abstract void invokeAmount(String method, String args, Callback<TonAmount> callback);\n\n`;
     out += `    abstract void invokeMnemonic(String method, String args, Callback<TonMnemonic> callback);\n\n`;
-    out += `    abstract void invokeList(String method, String args, Class<?> arrayType, Callback<?> callback);\n\n`;
-    out += `    abstract <D, T> void invokeObject(String method, String args, Class<D> descriptor,\n`;
+    out += `    abstract void invokeString(String method, String args, Callback<String> callback);\n\n`;
+    out += `    abstract <T> void invokeList(String method, String args, Parser<T> parser, Callback<?> callback);\n\n`;
+    out += `    abstract <D, T> void invokeObject(String method, String args, Parser<D> descriptor,\n`;
     out += `                                      TonWalletKit.Factory<D, T> factory, Callback<T> callback);\n\n`;
-    out += `    abstract <D, T> void invokeObjectList(String method, String args, Class<D[]> descriptors,\n`;
+    out += `    abstract <D, T> void invokeObjectList(String method, String args, Parser<D> descriptor,\n`;
     out += `                                          TonWalletKit.Factory<D, T> factory,\n`;
     out += `                                          Callback<List<T>> callback);\n\n`;
     out += `    abstract String chainId(String chainId);\n\n`;

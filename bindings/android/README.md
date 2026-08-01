@@ -33,18 +33,18 @@ deliberate: it keeps CMake and Node out of the Gradle build, and it means the
 ```gradle
 dependencies {
     implementation files('libs/ton-walletkit-release.aar')
-
-    // An .aar dropped into libs/ carries no transitive dependencies, so this
-    // line is needed even though the AAR declares it. The generated DTOs are
-    // Gson models.
-    implementation 'com.google.code.gson:gson:2.10.1'
 }
 ```
 
+That is the whole integration. **The binding has no dependencies** — the models
+read and write themselves through `org.json`, which is part of Android — so
+there is no second JSON library in the app and no version to conflict with.
+
 R8 rules ship inside the AAR (`consumer-rules.pro`) and are applied
-automatically. They matter: the native methods bind by symbol name and Gson maps
-JSON onto field names, so renaming either breaks at runtime while compiling
-perfectly.
+automatically. They keep two things only: the native method names, which the
+`.so` binds by symbol, and the `HostBridge` methods the JNI shim resolves by
+name. The models are not among them — nothing reflects over them, so R8 may
+rename and shrink the whole `org.ton.walletkit.api` package.
 
 ## Using it
 
@@ -91,9 +91,10 @@ client is closed — the core tolerates that.
   `libtwk_jni.so` cannot conflict with `libtmessages`.
 - **16 KB page alignment** is on, so it loads on Android 15 devices with 16 KB
   pages.
-- **Gson is the one new dependency.** If that is unacceptable, the alternative is
-  regenerating the DTOs with `org.json` parsing via custom templates — a real
-  piece of work, not a flag, so it should be a deliberate decision.
+- **No new dependencies.** The DTOs are generated onto `org.json`, the JSON
+  library `TMessagesProj` already uses, rather than onto Gson — which is why
+  `scripts/generate-api/emit-java-dto.mjs` exists instead of openapi-generator's
+  Java target, since that one only speaks Gson or Jackson.
 - The app may prefer to `System.loadLibrary("twk_jni")` itself alongside its own
   natives; `Native.load()` is only the default path.
 
@@ -102,7 +103,7 @@ client is closed — the core tolerates that.
 | Path | What |
 |---|---|
 | `src/main/java/org/ton/walletkit/core/` | transport, host interface, facade |
-| `src/main/java/org/ton/walletkit/api/` | generated DTOs (Gson) |
+| `src/main/java/org/ton/walletkit/api/` | generated DTOs, on `org.json` |
 | `src/android/java/` | the reference host — the only part needing a `Context` |
 | `src/main/cpp/twk_jni.cpp` | the JNI shim |
 | `test/JniSmoke.java` | runs the real core on a desktop JVM, no emulator |

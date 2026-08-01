@@ -7,7 +7,8 @@
     "schema": "ts-json-schema-generator --path src/api-surface.ts --tsconfig tsconfig.json --type \"*\" --expose all --no-top-ref --out build/schema.json",
     "openapi": "node schema-to-openapi.mjs",
     "csharp": "node run-openapi-generator.mjs",
-    "build": "npm run surface && npm run schema && npm run openapi && npm run csharp"
+    "java": "node emit-java-dto.mjs",
+    "build": "npm run surface && npm run schema && npm run openapi && npm run csharp && npm run java"
   },
   "devDependencies": {
     "ts-json-schema-generator": "2.4.0",

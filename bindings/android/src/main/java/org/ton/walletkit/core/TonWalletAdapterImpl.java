@@ -69,32 +69,32 @@ class TonWalletAdapterImpl implements TonWalletAdapter {
 
     @Override
     public void stateInit(Callback<String> callback) {
-        kit.invoke("getStateInit", TonJson.args(handle), String.class, callback);
+        kit.invokeString("getStateInit", TonJson.args(handle), callback);
     }
 
     @Override
     public void signedSendTransaction(TONTransactionRequest input, TONSignedSendTransactionOptions options, Callback<String> callback) {
-        kit.invoke("getSignedSendTransaction", TonJson.args(handle, input, options), String.class, callback);
+        kit.invokeString("getSignedSendTransaction", TonJson.args(handle, input, options), callback);
     }
 
     @Override
     public void signedSignMessage(TONTransactionRequest input, TONSignedSendTransactionOptions options, Callback<String> callback) {
-        kit.invoke("getSignedSignMessage", TonJson.args(handle, input, options), String.class, callback);
+        kit.invokeString("getSignedSignMessage", TonJson.args(handle, input, options), callback);
     }
 
     @Override
     public void signedSignData(TONPreparedSignData input, Boolean fakeSignature, Callback<String> callback) {
-        kit.invoke("getSignedSignData", TonJson.args(handle, input, TonJson.signOptions(fakeSignature)), String.class, callback);
+        kit.invokeString("getSignedSignData", TonJson.args(handle, input, TonJson.signOptions(fakeSignature)), callback);
     }
 
     @Override
     public void signedTonProof(TONProofMessage input, Boolean fakeSignature, Callback<String> callback) {
-        kit.invoke("getSignedTonProof", TonJson.args(handle, input, TonJson.signOptions(fakeSignature)), String.class, callback);
+        kit.invokeString("getSignedTonProof", TonJson.args(handle, input, TonJson.signOptions(fakeSignature)), callback);
     }
 
     @Override
     public void supportedFeatures(Callback<List<TonFeature>> callback) {
-        kit.invokeList("getSupportedFeatures", TonJson.args(handle), TonFeature[].class, callback);
+        kit.invokeList("getSupportedFeatures", TonJson.args(handle), TonFeature.PARSER, callback);
     }
 
 }
