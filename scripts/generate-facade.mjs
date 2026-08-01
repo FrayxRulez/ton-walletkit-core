@@ -11,8 +11,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as csharp from './facade/csharp.mjs';
+import * as java from './facade/java.mjs';
 
-const EMITTERS = { csharp };
+const EMITTERS = { csharp, java };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const schema = JSON.parse(fs.readFileSync(path.join(root, 'api', 'facade.json'), 'utf8'));
