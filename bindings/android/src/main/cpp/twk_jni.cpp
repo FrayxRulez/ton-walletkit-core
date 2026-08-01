@@ -44,6 +44,23 @@ struct HostBridge {
     twk_delegates delegates{};
 };
 
+/**
+ * Attaches this thread, whatever its jni.h says the out-parameter is.
+ *
+ * Android declares AttachCurrentThreadAsDaemon taking JNIEnv**, the reference
+ * JNI headers take void**, and a cast that satisfies one is an error on the
+ * other. Deducing the type from the member function means neither platform
+ * needs an #ifdef — and the desktop build cannot compile something Android
+ * rejects, which is exactly how this was missed the first time.
+ */
+template <typename Env>
+jint attach_as_daemon(JavaVM* vm, jint (JavaVM::*attach)(Env**, void*), JNIEnv** out) {
+    Env* env = nullptr;
+    const jint status = (vm->*attach)(&env, nullptr);
+    *out = reinterpret_cast<JNIEnv*>(env);
+    return status;
+}
+
 /** The env for this thread, attaching it to the JVM if it is a native one. */
 JNIEnv* env_for_current_thread() {
     if (g_vm == nullptr) {
@@ -60,7 +77,7 @@ JNIEnv* env_for_current_thread() {
     }
 
     // Daemon, so a still-attached worker cannot keep the JVM alive at shutdown.
-    return g_vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(&env), nullptr) == JNI_OK ? env : nullptr;
+    return attach_as_daemon(g_vm, &JavaVM::AttachCurrentThreadAsDaemon, &env) == JNI_OK ? env : nullptr;
 }
 
 /** A C string as a Java byte[]; null stays null. */
