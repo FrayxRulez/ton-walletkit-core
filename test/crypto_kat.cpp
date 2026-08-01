@@ -85,6 +85,39 @@ int main() {
                 "f1f491bda09709288f8b1c0557ad061b5d661e338e4ab56056ac7d27f020ba49"
                 "41f49b00114db4a1720a44ac7ca6e24991eabfe02424f5516ca2708958b2008c");
 
+    // Multi-block paths. Everything above fits in one or two blocks, so a
+    // backend could get the buffering wrong and still pass: 1000 bytes is ~16
+    // SHA-256 blocks, a 200-byte HMAC key exercises the hash-the-key branch, and
+    // a 100-byte derived key needs two PBKDF2 blocks. Vectors from OpenSSL.
+    std::vector<uint8_t> long_message(1000, 'a');
+
+    uint8_t long256[32];
+    ok &= crypto::sha256(long_message.data(), long_message.size(), long256);
+    ok &= check("sha256(1000 x 'a')", hex(long256, 32),
+                "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3");
+
+    uint8_t long512[64];
+    ok &= crypto::sha512(long_message.data(), long_message.size(), long512);
+    ok &= check("sha512(1000 x 'a')", hex(long512, 64),
+                "67ba5535a46e3f86dbfbed8cbbaf0125c76ed549ff8b0b9e03e0c88cf90fa634"
+                "fa7b12b47d77b694de488ace8d9a65967dc96df599727d3292a8d9d447709c97");
+
+    std::vector<uint8_t> long_key(200, 0x0c);
+    const uint8_t long_key_data[] = {'l', 'o', 'n', 'g', ' ', 'k', 'e', 'y'};
+    uint8_t long_mac[64];
+    ok &= crypto::hmac_sha512(long_key.data(), long_key.size(), long_key_data, sizeof(long_key_data), long_mac);
+    ok &= check("hmac_sha512(key > block size)", hex(long_mac, 64),
+                "1984f7c9ef105718e270322bf6f25ecb8b2364d645caccb4d2738eacf87597d3"
+                "421fd81e4c73e11388a6c90ee9088bd826691332f1c27704ef6775f666f3f750");
+
+    uint8_t dk3[100];
+    ok &= crypto::pbkdf2_sha512(password, sizeof(password), salt, sizeof(salt), 4096, dk3, sizeof(dk3));
+    ok &= check("pbkdf2_sha512(100 bytes, 2 blocks)", hex(dk3, 100),
+                "d197b1b33db0143e018b12f3d1d1479e6cdebdcc97c5c0f87f6902e072f457b5"
+                "143f30602641b3d55cd335988cb36b84376060ecd532e039b742a239434af2d5"
+                "d6883f0be4c24d363b638f4c2f8d917533cd4158937d0b490697a64adadb07f1"
+                "80c32308");
+
     // RNG: must fill and not return a constant block.
     uint8_t r1[32] = {0}, r2[32] = {0};
     ok &= crypto::random_bytes(r1, sizeof(r1));
