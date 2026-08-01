@@ -54,6 +54,35 @@ if(PROJECT_IS_TOP_LEVEL)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 endif()
 
+# ---- size ------------------------------------------------------------------
+# On by default where it matters: the library ships inside somebody else's app,
+# and on Android it ships once per ABI.
+#
+# Deliberately NOT -Oz. The hot code here is the QuickJS interpreter and startup
+# is already ~1.1s; trading that for a few hundred KB is the wrong way round.
+# Everything below is free at runtime — it drops code and symbols that were
+# never reachable rather than making the reachable code slower.
+option(TWK_OPTIMIZE_SIZE "Drop unreachable code and hide private symbols" ${ANDROID})
+
+if(TWK_OPTIMIZE_SIZE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    # Per-function/data sections so the linker can discard what nothing calls.
+    add_compile_options(-ffunction-sections -fdata-sections)
+    # The public surface is annotated (TWK_EXPORT, JNIEXPORT); everything else is
+    # ours and does not belong in .dynsym.
+    add_compile_options(-fvisibility=hidden)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
+    add_link_options(-Wl,--gc-sections)
+
+    # Identical code folding: LLD only, which is what the NDK uses.
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_LINK_OPTIONS -Wl,--icf=all)
+    check_cxx_source_compiles("int main() { return 0; }" TWK_LINKER_HAS_ICF)
+    unset(CMAKE_REQUIRED_LINK_OPTIONS)
+    if(TWK_LINKER_HAS_ICF)
+        add_link_options(-Wl,--icf=all)
+    endif()
+endif()
+
 # ---- dependencies ------------------------------------ (M0: vendor QuickJS-ng)
 # QuickJS-ng (pinned submodule, third_party/quickjs @ v0.15.1). We consume only the
 # `qjs` static library; its CLI (qjs_exe), bytecode compiler (qjsc), examples and

@@ -245,6 +245,26 @@ jobs:
           done
           unzip -l "$aar" | grep -q 'classes.jar' || { echo 'no classes.jar'; exit 1; }
 
+      - name: Size report
+        # The .aar carries every ABI, but a device installs one — so the number
+        # that matters to an app is the per-ABI row, not the file size. Reported
+        # on every build because size regresses quietly.
+        run: |
+          aar=bindings/android/build/outputs/aar/ton-walletkit-release.aar
+          echo "### Android binding size" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| what | installed | in the .aar (deflated) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---:|---:|" >> $GITHUB_STEP_SUMMARY
+          unzip -v "$aar" | awk '
+            /libtwk_jni\.so|classes\.jar/ {
+              split($8, path, "/");
+              name = (path[2] != "" && $8 ~ /\.so$/) ? path[2] : $8;
+              printf "| %s | %.2f MB | %.2f MB |\n", name, $1/1048576, $2/1048576
+            }' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "A device downloads and installs **one** ABI. The .aar is $(du -h "$aar" | cut -f1) only because it carries all three." >> $GITHUB_STEP_SUMMARY
+          cat $GITHUB_STEP_SUMMARY
+
       - uses: actions/upload-artifact@v4
         with:
           name: ton-walletkit-aar

@@ -73,8 +73,11 @@ for abi in $abis; do
     cp "$out/$abi/bin/libtwk_jni.so" "$jni_libs/$abi/libtwk_jni.so"
 
     # Stripping is most of the file: ~13 MB of DWARF for ~3 MB of code.
+    # --strip-all, not --strip-unneeded: this is a leaf library loaded by name,
+    # so nothing needs its symbol table. .dynsym, which the loader does need,
+    # is not touched by either.
     if [ -n "$strip" ]; then
-        "$strip" --strip-unneeded "$jni_libs/$abi/libtwk_jni.so"
+        "$strip" --strip-all "$jni_libs/$abi/libtwk_jni.so"
     fi
     echo "[android] $abi -> $(du -h "$jni_libs/$abi/libtwk_jni.so" | cut -f1)"
 done
