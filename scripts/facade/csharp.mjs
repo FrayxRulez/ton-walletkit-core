@@ -268,7 +268,8 @@ function implementations(schema) {
     for (const object of schema.objects.filter((o) => !o.root)) {
         const type = objectType(object.name);
         const base = object.extends ? objectType(object.extends) : null;
-        const sealedOrNot = schema.objects.some((o) => o.extends === object.name) ? '' : 'sealed ';
+        const inherited = schema.objects.some((o) => o.extends === object.name);
+        const sealedOrNot = inherited ? '' : 'sealed ';
 
         out += docComment(object.doc, 4);
         const bases = [base, interfaceType(object.name)].filter(Boolean).join(', ');
@@ -277,8 +278,11 @@ function implementations(schema) {
         // Every object is addressed by an id, and carries the properties the
         // descriptor reported when it was created.
         if (!base) {
+            // protected only where something actually derives from this: the
+            // compiler warns about a protected member on a sealed class, since
+            // nothing can ever reach it.
             out += `        /// <summary>The kit this object belongs to.</summary>\n`;
-            out += `        protected TonWalletKit Kit { get; }\n\n`;
+            out += `        ${inherited ? 'protected' : 'private'} TonWalletKit Kit { get; }\n\n`;
             out += `        /// <summary>The id the ABI addresses this object by.</summary>\n`;
             out += `        internal string Handle { get; }\n\n`;
         }

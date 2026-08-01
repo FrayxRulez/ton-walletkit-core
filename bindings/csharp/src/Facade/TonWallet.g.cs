@@ -14,7 +14,7 @@ namespace Ton.WalletKit
     internal sealed class TonWalletSigner : ITonWalletSigner
     {
         /// <summary>The kit this object belongs to.</summary>
-        protected TonWalletKit Kit { get; }
+        private TonWalletKit Kit { get; }
 
         /// <summary>The id the ABI addresses this object by.</summary>
         internal string Handle { get; }

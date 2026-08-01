@@ -34,11 +34,11 @@ jobs:
           - { name: macos (commoncrypto), os: macos-latest }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive   # QuickJS-ng
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -57,6 +57,9 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ninja
 
+      # Still a node20 action, so GitHub runs it on node24 and warns. Nothing to
+      # bump to — upstream has not released a node24 build — and it is what puts
+      # cl.exe on PATH for the Ninja generator.
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
 
@@ -75,10 +78,10 @@ jobs:
     # The fallback every platform without a system backend uses (Android above
     # all), so it is checked even where a better backend exists.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -98,10 +101,10 @@ jobs:
       matrix:
         sanitizer: [address_undefined, thread]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -140,18 +143,21 @@ jobs:
     name: C# binding
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: js/package-lock.json
       - run: npm ci && npm run build
         working-directory: js
+      # Still a node20 action, so GitHub runs it on node24 and warns. Nothing to
+      # bump to — upstream has not released a node24 build — and it is what puts
+      # cl.exe on PATH for the Ninja generator.
       - uses: ilammy/msvc-dev-cmd@v1
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 

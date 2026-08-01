@@ -45,6 +45,8 @@ namespace Ton.WalletKit
         /// splits this into endpoint path + query/payload.</param>
         /// <param name="headersJson">Request headers as a flat JSON object.</param>
         /// <param name="body">Request body for POST, otherwise null.</param>
+        /// <param name="cancellationToken">Cancelled when the core abandons the
+        /// request (walletkit aborting it, or the client shutting down).</param>
         Task<WalletKitHttpResponse> SendAsync(string method, string url, string headersJson, string body,
                                               CancellationToken cancellationToken);
     }
