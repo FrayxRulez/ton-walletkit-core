@@ -250,7 +250,6 @@ JNIEXPORT jlong JNICALL Java_org_ton_walletkit_core_Native_delegatesCreate(JNIEn
     bridge->storage_clear = env->GetMethodID(type, "onStorageClear", "(JJ)V");
     bridge->log = env->GetMethodID(type, "onLog", "(JI[B)V");
 
-    bridge->delegates.user = bridge;
     bridge->delegates.http_request = on_http_request;
     bridge->delegates.http_cancel = on_http_cancel;
     bridge->delegates.sse_open = on_sse_open;
@@ -280,8 +279,10 @@ JNIEXPORT void JNICALL Java_org_ton_walletkit_core_Native_delegatesDestroy(JNIEn
 // ---- client ----------------------------------------------------------------
 
 JNIEXPORT jlong JNICALL Java_org_ton_walletkit_core_Native_clientCreate(JNIEnv*, jclass, jlong delegates) {
+    // The bridge is the delegates' user pointer: twk_client_create takes it
+    // separately, and every callback receives it back.
     auto* bridge = reinterpret_cast<HostBridge*>(delegates);
-    twk_client* client = twk_client_create(bridge != nullptr ? &bridge->delegates : nullptr, nullptr);
+    twk_client* client = twk_client_create(bridge != nullptr ? &bridge->delegates : nullptr, bridge);
     return reinterpret_cast<jlong>(client);
 }
 

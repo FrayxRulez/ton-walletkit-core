@@ -7,6 +7,10 @@ project(ton_walletkit_core
 
 # ---- options --------------------------------------------------------------
 option(TWK_BUILD_CLI   "Build the twk-cli test driver"   ON)
+# The JNI shim is the Android binding, but it is plain JNI: built for the host
+# too whenever a JDK is around, so it can be tested on a normal JVM rather than
+# only on a device.
+option(TWK_BUILD_JNI   "Build the JNI shim (libtwk_jni)"   ON)
 option(TWK_BUILD_TESTS "Build unit / integration tests"  ON)
 set(TWK_SANITIZE "" CACHE STRING "Sanitizer to build with: address | undefined | thread (empty = none)")
 
@@ -62,6 +66,19 @@ add_subdirectory(src)
 
 # ---- reference host (test-only delegate implementation) --------------------
 add_subdirectory(host)
+
+if(TWK_BUILD_JNI)
+    if(ANDROID)
+        add_subdirectory(bindings/android/src/main/cpp)
+    else()
+        find_package(JNI QUIET)
+        if(JNI_FOUND)
+            add_subdirectory(bindings/android/src/main/cpp)
+        else()
+            message(STATUS "twk: no JDK found - skipping the JNI shim")
+        endif()
+    endif()
+endif()
 
 # ---- test driver ------------------------------------------ (M0: twk-cli)
 if(TWK_BUILD_CLI)
