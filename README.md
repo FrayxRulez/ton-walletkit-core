@@ -7,6 +7,8 @@ supplies a thin binding and a few host delegates (HTTP, SSE, secure storage, RNG
 
 - **Design:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - **Plan:** [`ROADMAP.md`](ROADMAP.md) — milestones M0…M8
+- **API:** [`docs/API.md`](docs/API.md) — the JSON methods the core exposes
+- **Porting:** [`docs/BINDINGS.md`](docs/BINDINGS.md) — how to write a binding for another language
 
 ## Layout
 ```
@@ -16,7 +18,8 @@ js/              the JS QuickJS runs: ported walletkit bridge + polyfills (built
 bindings/        thin per-language wrappers (csharp / swift / kotlin)
 tools/twk-cli/   desktop test driver: JSON lines on stdin -> send -> print receive
 test/            unit + integration tests
-scripts/         build helpers, the API codegen, and the upstream tracker
+api/facade.json  the typed facade every binding exposes, described once
+scripts/         build helpers, the codegens (DTOs + facade), and the upstream tracker
 third_party/     vendored deps (QuickJS-ng submodule)
 upstream.json    the upstream commits this library was written against
 ```
