@@ -62,12 +62,30 @@ else()
                    "pass -DTWK_BUNDLEC=<host twk-bundlec> for bytecode")
 endif()
 
+# Compressing the embedded bundle costs one inflate per client and takes ~170KB
+# off every download of the app this ships inside — which, for Telegram Android,
+# is a number with eight zeroes after it. Needs zlib on both sides: on the target
+# to inflate, and in the host twk-bundlec to deflate. Android and every Unix have
+# it; Windows does not, and simply keeps embedding the bytecode uncompressed.
+find_package(ZLIB QUIET)
+if(ZLIB_FOUND)
+    option(TWK_COMPRESS_BUNDLE "Deflate the embedded JS bundle" ON)
+else()
+    set(TWK_COMPRESS_BUNDLE OFF)
+endif()
+
 if(TWK_BUNDLEC_COMMAND)
     set(TWK_USE_BYTECODE ON)
+    if(TWK_COMPRESS_BUNDLE)
+        set(TWK_BUNDLEC_FLAGS --deflate)
+    else()
+        set(TWK_BUNDLEC_FLAGS "")
+    endif()
     add_custom_command(
         OUTPUT  ${TWK_BC_HEADER}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
         COMMAND ${TWK_BUNDLEC_COMMAND} ${CMAKE_SOURCE_DIR}/js/dist/bundle.js ${TWK_BC_HEADER} twk_bundle_bc
+                ${TWK_BUNDLEC_FLAGS}
         DEPENDS ${TWK_BUNDLEC_DEPENDS} ${CMAKE_SOURCE_DIR}/js/dist/bundle.js
         COMMENT "Compiling JS bundle -> QuickJS bytecode"
         VERBATIM
@@ -152,6 +170,9 @@ target_include_directories(twk
 if(TWK_USE_BYTECODE)
     add_dependencies(twk twk_bundle_bytecode)
     target_compile_definitions(twk PRIVATE TWK_BUNDLE_BYTECODE=1)
+    if(TWK_COMPRESS_BUNDLE)
+        target_link_libraries(twk PRIVATE ZLIB::ZLIB)
+    endif()
 endif()
 
 # QuickJS is an internal implementation detail — linked PRIVATE so it does not
@@ -186,6 +207,9 @@ target_link_libraries(twk_shared PRIVATE qjs)
 if(TWK_USE_BYTECODE)
     add_dependencies(twk_shared twk_bundle_bytecode)
     target_compile_definitions(twk_shared PRIVATE TWK_BUNDLE_BYTECODE=1)
+    if(TWK_COMPRESS_BUNDLE)
+        target_link_libraries(twk_shared PRIVATE ZLIB::ZLIB)
+    endif()
 endif()
 
 if(WIN32)

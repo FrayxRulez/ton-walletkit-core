@@ -25,10 +25,33 @@
 #include "host_context.h"
 #include "util/base64.h"
 
+#if TWK_BUNDLE_BYTECODE && TWK_BUNDLE_BC_DEFLATED
+#include <zlib.h>
+#endif
+
 namespace twk {
 namespace bridge {
 
 namespace {
+
+#if TWK_BUNDLE_BYTECODE && TWK_BUNDLE_BC_DEFLATED
+/** Inflates the embedded bundle in place. `raw_len` is what it must inflate to. */
+bool inflate_bundle(std::vector<uint8_t>& bytes, unsigned long raw_len, std::string* error) {
+    std::vector<uint8_t> raw(raw_len);
+    uLongf produced = static_cast<uLongf>(raw_len);
+    const int rc = uncompress(raw.data(), &produced, bytes.data(), static_cast<uLong>(bytes.size()));
+    if (rc != Z_OK || produced != raw_len) {
+        // The bundle is baked into this binary, so this cannot be bad input —
+        // only a build that embedded one thing and linked another.
+        if (error != nullptr) {
+            *error = "the embedded bundle did not inflate; the build is inconsistent";
+        }
+        return false;
+    }
+    bytes.swap(raw);
+    return true;
+}
+#endif
 
 Client* client_of(JSContext* ctx) {
     auto* hc = static_cast<HostContext*>(JS_GetContextOpaque(ctx));
@@ -133,6 +156,14 @@ bool install(JsRuntime& js, std::string* error) {
     // Precompiled at build time by twk-bundlec: deserialize and run, skipping the
     // ~1.7MB parse each client would otherwise pay on startup.
     std::vector<uint8_t> bytes = base64::decode(twk_bundle_bc, twk_bundle_bc_len);
+#if TWK_BUNDLE_BC_DEFLATED
+    // Compressed to keep it out of the download: the app this ships inside is
+    // installed hundreds of millions of times, so ~170KB each matters more than
+    // the few ms this costs once per client.
+    if (!inflate_bundle(bytes, twk_bundle_bc_raw_len, error)) {
+        return false;
+    }
+#endif
     return js.evalBytecode(bytes.data(), bytes.size(), error);
 #else
     // Source form (used when cross-compiling, where twk-bundlec can't run).
