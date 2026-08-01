@@ -12,6 +12,7 @@
 import * as esbuild from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -37,7 +38,16 @@ await esbuild.build({
     format: 'iife',
     target: 'es2020',
     platform: 'browser',
-    minify: false, // (minify made the bundle larger here; keep readable)
+    // Minified: 2159 KB of source becomes 1069 KB, and 415 KB deflated becomes
+    // 338 KB — which is what a download costs, hundreds of millions of times.
+    // (An earlier comment here claimed minifying made the bundle larger. It does
+    // not; measured both ways.)
+    minify: true,
+    // …but not at the cost of Function.prototype.name. esbuild renames functions
+    // and classes by default, and anything upstream that switches on a
+    // constructor name would break silently rather than loudly. 10 KB deflated
+    // is a cheap price for not debugging that inside a wallet.
+    keepNames: true,
     sourcemap: false,
     legalComments: 'none',
     logLevel: 'info',
@@ -48,21 +58,37 @@ await esbuild.build({
 const bundlePath = path.resolve(__dirname, 'dist/bundle.js');
 console.log(`✅ dist/bundle.js built (${fs.statSync(bundlePath).size} bytes)`);
 
-// Emit the C header the native core embeds: the bundle as base64 in chunked
+// Emit the C headers the native core embeds: the bundle as base64 in chunked
 // string literals. base64 (no escaping) + string literals compile fast on MSVC,
 // unlike a multi-MB byte-array initializer, and this runs in Node (ms) rather
 // than via CMake string ops.
-const b64 = fs.readFileSync(bundlePath).toString('base64');
+//
+// Two variants, because the native build cannot compress for itself: deflating
+// needs zlib, which the target has (Android, every Unix) or has not (Windows).
+// CMake includes whichever matches, so neither side has to guess.
 const CHUNK = 20000; // well under the MSVC 65535-byte per-literal limit
-const lines = [];
-for (let i = 0; i < b64.length; i += CHUNK) {
-    lines.push('"' + b64.slice(i, i + CHUNK) + '"');
+
+function emit(file, payload, rawLength, deflated) {
+    const b64 = payload.toString('base64');
+    const lines = [];
+    for (let i = 0; i < b64.length; i += CHUNK) {
+        lines.push('"' + b64.slice(i, i + CHUNK) + '"');
+    }
+    const header =
+        '// Generated from bundle.js by build.mjs. Do not edit.\n' +
+        `#define TWK_BUNDLE_B64_DEFLATED ${deflated ? 1 : 0}\n` +
+        'static const char twk_bundle_b64[] =\n' +
+        lines.join('\n') +
+        ';\n' +
+        `static const unsigned long twk_bundle_b64_len = ${b64.length}ul;\n` +
+        `static const unsigned long twk_bundle_b64_raw_len = ${rawLength}ul;\n`;
+    fs.writeFileSync(path.resolve(__dirname, file), header);
+    return { chunks: lines.length, size: b64.length };
 }
-const header =
-    '// Generated from bundle.js by build.mjs. Do not edit.\n' +
-    'static const char twk_bundle_b64[] =\n' +
-    lines.join('\n') +
-    ';\n' +
-    `static const unsigned long twk_bundle_b64_len = ${b64.length}ul;\n`;
-fs.writeFileSync(path.resolve(__dirname, 'dist/bundle.h'), header);
-console.log(`✅ dist/bundle.h built (${lines.length} chunks)`);
+
+const source = fs.readFileSync(bundlePath);
+const plain = emit('dist/bundle.h', source, source.length, false);
+const squeezed = emit('dist/bundle_z.h', zlib.deflateSync(source, { level: 9 }), source.length, true);
+
+console.log(`✅ dist/bundle.h built (${plain.chunks} chunks, ${plain.size} bytes embedded)`);
+console.log(`✅ dist/bundle_z.h built (${squeezed.chunks} chunks, ${squeezed.size} bytes embedded)`);

@@ -44,6 +44,9 @@ build-java/
 build-android*/
 build-host/
 build-jni/
+build-clean/
+build-bc/
+/smoke/
 
 # Android binding: the .so files are build output staged for packaging, and the
 # Gradle build is a normal Gradle build.

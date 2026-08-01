@@ -74,6 +74,22 @@ else()
     set(TWK_COMPRESS_BUNDLE OFF)
 endif()
 
+# Source or bytecode? Bytecode starts faster; minified source is much smaller to
+# download, and that is the one paid per install:
+#
+#                        deflated (what a download costs)
+#   bytecode                        545 KB
+#   minified source                 338 KB
+#
+# The parse it buys back is a fraction of a second, once per app lifecycle, so
+# source is the default. -DTWK_BUNDLE_SOURCE=OFF picks bytecode for a build that
+# would rather have the startup.
+option(TWK_BUNDLE_SOURCE "Embed minified JS source rather than precompiled bytecode" ON)
+
+if(TWK_BUNDLE_SOURCE)
+    set(TWK_BUNDLEC_COMMAND "")
+endif()
+
 if(TWK_BUNDLEC_COMMAND)
     set(TWK_USE_BYTECODE ON)
     if(TWK_COMPRESS_BUNDLE)
@@ -170,9 +186,11 @@ target_include_directories(twk
 if(TWK_USE_BYTECODE)
     add_dependencies(twk twk_bundle_bytecode)
     target_compile_definitions(twk PRIVATE TWK_BUNDLE_BYTECODE=1)
-    if(TWK_COMPRESS_BUNDLE)
-        target_link_libraries(twk PRIVATE ZLIB::ZLIB)
-    endif()
+elseif(TWK_COMPRESS_BUNDLE)
+    target_compile_definitions(twk PRIVATE TWK_BUNDLE_SOURCE_DEFLATED=1)
+endif()
+if(TWK_COMPRESS_BUNDLE)
+    target_link_libraries(twk PRIVATE ZLIB::ZLIB)
 endif()
 
 # QuickJS is an internal implementation detail — linked PRIVATE so it does not
@@ -207,9 +225,11 @@ target_link_libraries(twk_shared PRIVATE qjs)
 if(TWK_USE_BYTECODE)
     add_dependencies(twk_shared twk_bundle_bytecode)
     target_compile_definitions(twk_shared PRIVATE TWK_BUNDLE_BYTECODE=1)
-    if(TWK_COMPRESS_BUNDLE)
-        target_link_libraries(twk_shared PRIVATE ZLIB::ZLIB)
-    endif()
+elseif(TWK_COMPRESS_BUNDLE)
+    target_compile_definitions(twk_shared PRIVATE TWK_BUNDLE_SOURCE_DEFLATED=1)
+endif()
+if(TWK_COMPRESS_BUNDLE)
+    target_link_libraries(twk_shared PRIVATE ZLIB::ZLIB)
 endif()
 
 if(WIN32)
