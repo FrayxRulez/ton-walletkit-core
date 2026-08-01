@@ -24,12 +24,6 @@
 #include <unistd.h>
 
 #include <cerrno>
-#if defined(__has_include)
-#if __has_include(<sys/random.h>)
-#include <sys/random.h>
-#define TWK_HAVE_GETRANDOM 1
-#endif
-#endif
 #else
 #include <cstdlib>
 #endif
@@ -80,11 +74,14 @@ bool random_bytes(uint8_t* out, size_t len) {
 
 #elif defined(__linux__)
     while (len > 0) {
-#if defined(TWK_HAVE_GETRANDOM)
-        const ssize_t got = getrandom(out, len, 0);
-#else
-        // Older glibc / bionic without the wrapper: the syscall is still there.
+#if defined(SYS_getrandom)
+        // The syscall rather than the wrapper: bionic only declares getrandom()
+        // from API 28, and Telegram Android builds against 21. The syscall has
+        // been there since Linux 3.17 either way.
         const ssize_t got = static_cast<ssize_t>(syscall(SYS_getrandom, out, len, 0));
+#else
+        const ssize_t got = -1;
+        errno = ENOSYS;
 #endif
         if (got < 0) {
             if (errno == EINTR) {
